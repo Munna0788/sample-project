@@ -10,6 +10,9 @@ venv/
 .coverage
 htmlcov/
 *.log
+*.db
+*.sqlite
+*.sqlite3
 .DS_Store
 *.egg-info/
 dist/
