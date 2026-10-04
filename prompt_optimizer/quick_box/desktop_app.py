@@ -438,14 +438,19 @@ class SpotlightApp:
             pct = (saved / orig_t) * 100
             if saved > 0:
                 self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens (-{pct:.0f}%)", fg="#2ea043")
+                self.hp_desc.config(
+                    text=f"Token Optimization: Saved {saved} tokens ({pct:.0f}% reduction). Zero boilerplate."
+                )
             else:
                 self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens", fg="#58a6ff")
+                self.hp_desc.config(
+                    text="Direct imperative prompt with essential technical constraints. Zero boilerplate."
+                )
         else:
             self.hp_badge.config(text=f"⚡ {hp_t} tokens", fg="#58a6ff")
-
-        self.hp_desc.config(
-            text=f"Token Optimization: {orig_t} input tokens ➔ {hp_t} compiled tokens. Invariants enforced."
-        )
+            self.hp_desc.config(
+                text="Direct imperative prompt with essential technical constraints. Zero boilerplate."
+            )
 
         self.status_lbl.config(
             text=f"✓ Optimized ({hp_t} tokens)! Press Enter or click Copy button.",

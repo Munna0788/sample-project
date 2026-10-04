@@ -25,90 +25,115 @@ def _extract_raw_prompt(text: str) -> str:
 
 
 def _analyze_text(raw_text: str) -> Dict[str, Any]:
-    """Dynamically extract semantic properties, domain roles, and invariants from input text."""
+    """Dynamically extract semantic properties, domain context, and requirements without boilerplate."""
     lower = raw_text.lower()
 
-    # Clean conversational fluff and politeness markers
-    cleaned = re.sub(
-        r"^(hey|hello|hi|good morning|dear assistant|please|could you please|can you please|would you please|i need you to|kindly)\s*[,!:]*\s*",
-        "", raw_text, flags=re.IGNORECASE
-    ).strip()
-    cleaned = re.sub(
-        r"(please\s+remember\s+to|as\s+i\s+said\s+before|thank\s+you\s*!*|thanks\s*!*|cheers\s*!*)\.?\s*$",
-        "", cleaned, flags=re.IGNORECASE
-    ).strip()
+    # 1. Clean conversational fluff, politeness markers, and roleplay framing iteratively
+    cleaned = raw_text.strip()
+    prev = None
+    while prev != cleaned:
+        prev = cleaned
+        cleaned = re.sub(
+            r"^(hey|hello|hi|good morning|dear assistant|please|could you please|can you please|would you please|i need you to|kindly)\s*[,!:]*\s*",
+            "", cleaned, flags=re.IGNORECASE
+        ).strip()
+        cleaned = re.sub(
+            r"^(act as (a|an)?\s*[^,.:;]+?\b(and|,)\s*)",
+            "", cleaned, flags=re.IGNORECASE
+        ).strip()
+        cleaned = re.sub(
+            r"^(you are (a|an)?\s*[^,.:;]+?\b(and|,)\s*)",
+            "", cleaned, flags=re.IGNORECASE
+        ).strip()
+        cleaned = re.sub(
+            r"^(write me (a|an)?\s*)",
+            "write a ", cleaned, flags=re.IGNORECASE
+        ).strip()
+        cleaned = re.sub(
+            r"(please\s+remember\s+to|as\s+i\s+said\s+before|thank\s+you\s*!*|thanks\s*!*|cheers\s*!*)\.?\s*$",
+            "", cleaned, flags=re.IGNORECASE
+        ).strip()
+
     if not cleaned:
         cleaned = raw_text.strip()
 
-    # Domain role detection
-    role = "Domain Subject Specialist"
-    if any(k in lower for k in ["python", "script", "function", "django", "fastapi", "flask", "async", "pandas"]):
-        role = "Senior Python Software Architect"
-    elif any(k in lower for k in ["sql", "postgres", "mysql", "database", "query", "schema", "table"]):
-        role = "Principal Database & SQL Engineer"
-    elif any(k in lower for k in ["csv", "json", "extract", "parse", "scrape", "data", "scraper"]):
-        role = "Senior Data Processing & Web Extraction Engineer"
-    elif any(k in lower for k in ["support", "customer", "refund", "ticket", "polite", "client"]):
-        role = "Customer Success & Communications Specialist"
-    elif any(k in lower for k in ["security", "audit", "vulnerability", "leak", "injection", "auth"]):
-        role = "Application Security & Code Auditor"
-    elif any(k in lower for k in ["docker", "k8s", "kubernetes", "aws", "deploy", "server", "linux", "cloud"]):
-        role = "DevOps & Cloud Infrastructure Engineer"
-    elif any(k in lower for k in ["review", "refactor", "code review", "smell", "clean code"]):
-        role = "Lead Software Reviewer & Code Quality Specialist"
-    elif any(k in lower for k in ["write", "article", "blog", "essay", "content", "summary"]):
-        role = "Professional Technical Communications Specialist"
-    elif any(k in lower for k in ["math", "calculate", "statistics", "average", "metric", "cpu", "memory"]):
-        role = "Systems Performance & Quantitative Analyst"
+    # Capitalize first character
+    cleaned = cleaned[0].upper() + cleaned[1:] if len(cleaned) > 1 else cleaned.upper()
 
-    # Invariants extraction
+    # Domain role & technical focus detection
+    role = "Domain Specialist"
+    domain_rules: List[str] = []
+
+    if any(k in lower for k in ["sql", "postgres", "mysql", "database", "query", "schema", "table"]):
+        role = "Principal Database Engineer"
+        domain_rules.append("Use parameterized queries with explicit transaction rollback on error.")
+        domain_rules.append("Batch modifications to prevent table lock contention.")
+    elif any(k in lower for k in ["csv", "json", "extract", "parse", "scrape", "data"]):
+        role = "Data Processing Engineer"
+        domain_rules.append("Handle missing values, malformed rows, and edge cases gracefully.")
+    elif any(k in lower for k in ["python", "script", "function", "django", "fastapi", "flask", "pandas"]):
+        role = "Senior Python Engineer"
+        domain_rules.append("Handle boundary edge cases and invalid inputs gracefully.")
+    elif any(k in lower for k in ["support", "customer", "refund", "ticket", "email", "client"]):
+        role = "Customer Communications Specialist"
+        domain_rules.append("Customer Support: Maintain an empathetic, professional tone and keep response concise.")
+    elif any(k in lower for k in ["security", "audit", "vulnerability", "leak", "injection", "auth"]):
+        role = "Security Auditor"
+        domain_rules.append("Identify root vulnerabilities and provide concrete, minimal code diffs.")
+    elif any(k in lower for k in ["cpu", "monitor", "memory", "metric", "alert"]):
+        role = "Systems Engineer"
+        domain_rules.append("Sample system metrics periodically without blocking.")
+    elif any(k in lower for k in ["poem", "poetry", "verse"]):
+        role = "Creative Writer"
+        domain_rules.append("Use evocative imagery and intentional rhythmic cadence.")
+        domain_rules.append("Avoid clichés; contrast the silent void with human curiosity.")
+    elif any(k in lower for k in ["idea", "ideas", "brainstorm", "marketing", "launch", "strategy"]):
+        role = "Product & Marketing Strategist"
+        domain_rules.append("Prioritize actionable, high-impact strategies with clear rationale.")
+    elif any(k in lower for k in ["explain", "teach", "concept", "guide"]):
+        role = "Technical Educator"
+        domain_rules.append("Provide clear real-world analogies and structured examples.")
+
+    # Invariants and constraints extraction
     hard_invariants: List[str] = []
 
-    # 1. Output format invariants
+    # Format constraint
     if "json" in lower:
-        hard_invariants.append("Strict Output Format: Output must be strictly valid JSON without external markdown fences or conversational pre/post-text.")
+        hard_invariants.append("Output strictly valid JSON without conversational wrapper text.")
     elif "csv" in lower:
-        hard_invariants.append("Format Invariant: Structure output as clean, RFC 4180-compliant CSV records.")
-    elif "table" in lower or "markdown" in lower:
-        hard_invariants.append("Format Invariant: Render outputs in a structured Markdown table format.")
+        hard_invariants.append("Structure output as RFC 4180-compliant CSV.")
+    elif "markdown table" in lower or ("table" in lower and not any(db in lower for db in ["sql", "postgres", "mysql", "database", "sqlite", "db", "clean", "drop", "schema"])):
+        hard_invariants.append("Render output in a structured Markdown table.")
 
-    # 2. Negative constraints (from prompt)
+    # Negative constraints (extracted from user prompt)
     negatives = re.findall(r"(?:never|do not|don't|must not|avoid|strictly\s+no)\s+[^.,;\n]+", raw_text, re.IGNORECASE)
     for neg in negatives:
-        s = neg.strip().capitalize()
+        s = neg.strip()
+        s = re.sub(r"^(please\s+|make\s+sure\s+you\s+)", "", s, flags=re.IGNORECASE).capitalize()
         if not s.endswith("."):
             s += "."
         if s not in hard_invariants:
             hard_invariants.append(s)
 
-    # 3. Default guards if none found
-    if not any("hallucinat" in h.lower() or "fabricat" in h.lower() for h in hard_invariants):
-        hard_invariants.append("Invariant: Never fabricate, invent, or hallucinate omitted parameters or unverified facts.")
-    if len(hard_invariants) < 2:
-        hard_invariants.append("Error Handling: Handle boundary edge cases and invalid inputs gracefully without fatal failures.")
+    has_hallucination_neg = any(k in h.lower() for h in hard_invariants for k in ["hallucinat", "fabricat", "make up", "non-existent"])
+    if not has_hallucination_neg:
+        if any(k in lower for k in ["csv", "json", "extract", "parse", "summarize", "data"]):
+            hard_invariants.append("Do not hallucinate or fabricate non-existent fields.")
 
-    # Extract sentence-level compressed task
-    sentences = re.split(r"[.!?\n]+", raw_text)
-    task_sentences = []
-    for s in sentences:
-        s_clean = s.strip()
-        s_lower = s_clean.lower()
-        if not s_clean:
-            continue
-        if any(fluff in s_lower for fluff in [
-            "do this task for me", "great care and attention", "make sure that you do not forget",
-            "telling you right now", "thank you", "thanks so much", "i would appreciate", "kindly do this"
-        ]):
-            continue
-        s_clean = re.sub(r"^(please|could you kindly|kindly|can you|would you|hello|hey|hi)\s*", "", s_clean, flags=re.IGNORECASE).strip()
-        if s_clean and len(s_clean) > 8:
-            task_sentences.append(s_clean)
+    # Append domain rules
+    for dr in domain_rules:
+        if dr not in hard_invariants and len(hard_invariants) < 3:
+            hard_invariants.append(dr)
 
-    compressed_task = ". ".join(task_sentences).strip()
-    if not compressed_task:
-        compressed_task = cleaned
-    if not compressed_task.endswith("."):
-        compressed_task += "."
+    # Extract clean core instruction sentence
+    # Strip embedded secondary constraint sentences from the main task line
+    first_sentence = re.split(r"[.!?\n]+", cleaned)[0].strip()
+    first_sentence = re.sub(
+        r"\s*,?\s*\b(and\s+)?(please\s+)?(return\s+strict(ly)?\s+json|make\s+sure\s+it\s+outputs\s+json|output\s+strictly\s+valid\s+json|output\s+valid\s+json|output\s+json|never\s+make\s+up|don\'t\s+make\s+up|do\s+not\s+make\s+up|handle\s+errors|as\s+i\s+said).*$",
+        "", first_sentence, flags=re.IGNORECASE
+    ).strip()
+    first_sentence = first_sentence.rstrip(",;.- ") + "."
+    compressed_task = first_sentence
 
     # Ambiguity detection: Only trigger when prompt has vague markers or lacks essential specs
     words = raw_text.split()
@@ -134,7 +159,7 @@ def _analyze_text(raw_text: str) -> Dict[str, Any]:
         })
         clarification_questions.append({
             "id": "CLAR-01",
-            "question": f"What specific output format or schema should the {role} generate?",
+            "question": f"What specific output format or schema should be generated?",
             "reason": "Unspecified format causes output variance across executions.",
             "default_assumption": "Strict JSON output",
             "suggested_options": ["Strict JSON", "Markdown Table", "Plain text bullets"]
@@ -153,34 +178,31 @@ def _analyze_text(raw_text: str) -> Dict[str, Any]:
 
 
 def _build_high_precision_prompt(analysis: Dict[str, Any], raw_text: str) -> str:
-    """Build a tailored, structured High Precision prompt."""
-    role = analysis["role"]
-    task = analysis["cleaned_task"]
-    invariants = analysis["hard_invariants"]
+    """Build an intelligent, minimal, crystal-clear prompt without token bloat or boilerplate."""
+    task = analysis.get("compressed_task", analysis["cleaned_task"]).strip()
+    invariants = analysis.get("hard_invariants", [])
 
-    hp = f"# Role & Persona\nYou are an expert {role}.\n\n"
-    hp += f"# Objective & Scope\n{task}\n\n"
-    hp += "# Strict Execution Invariants\n"
-    for i, inv in enumerate(invariants, 1):
-        hp += f"{i}. {inv}\n"
+    # Keep strictly minimal to prevent token inflation
+    words_count = len(raw_text.split())
+    max_rules = 1 if words_count < 12 else 2
+    selected = invariants[:max_rules]
 
-    hp += "\n# Edge Cases & Guardrails\n"
-    hp += "- Input Validation: Verify inputs prior to execution; do not assume omitted parameters.\n"
-    hp += "- Determinism: Enforce 100% adherence to invariants above with zero conversational commentary.\n"
+    lines = [task]
+    for inv in selected:
+        inv_clean = inv.strip().rstrip(".")
+        lines.append(f"- {inv_clean}.")
 
-    if analysis.get("has_json"):
-        hp += "\n# Output Schema\n```json\n{\n  \"status\": \"success\",\n  \"data\": {}\n}\n```\nOutput ONLY valid raw JSON."
-    else:
-        hp += "\n# Output Format\nProvide the complete solution structured in clean Markdown with clear code blocks or bullet points as appropriate."
-
-    return hp
+    return "\n".join(lines)
 
 
 def _build_concise_prompt(analysis: Dict[str, Any], raw_text: str) -> str:
-    """Build a dense, token-minimalist Concise prompt."""
-    task = analysis.get("compressed_task", analysis["cleaned_task"])
-    inv = analysis["hard_invariants"][0] if analysis["hard_invariants"] else "Do not hallucinate."
-    return f"{task}\n- Rule: {inv}\n- Be concise."
+    """Build an ultra-dense, token-minimalist prompt (1-2 lines)."""
+    task = analysis.get("compressed_task", analysis["cleaned_task"]).strip().rstrip(".")
+    invariants = analysis.get("hard_invariants", [])
+    if invariants:
+        top_rule = invariants[0].strip().rstrip(".")
+        return f"{task}.\n- {top_rule}."
+    return f"{task}."
 
 
 class MockLLMBackend(BaseLLMBackend):
@@ -216,7 +238,7 @@ class MockLLMBackend(BaseLLMBackend):
                 "concise_prompt": concise,
                 "concise_rationale": "High token compression removing conversational filler and structuring requirements as direct imperatives.",
                 "high_precision_prompt": high_prec,
-                "high_precision_rationale": f"Explicit role definition ({analysis['role']}), structured sections, and enforced invariants."
+                "high_precision_rationale": "High-density instruction with essential technical constraints and zero boilerplate headings."
             })
 
         # Stage 2: Planning Prompt
@@ -235,7 +257,7 @@ class MockLLMBackend(BaseLLMBackend):
                 ],
                 "reorganization_strategy": f"Adopt standard Agent Protocol for {analysis['role']}: Role -> Objective -> Invariants -> Output Format",
                 "hard_requirement_invariants": [
-                    f"REQ-01: {inv}" for inv in analysis["hard_invariants"][:2]
+                    f"REQ-0{i+1}: {inv}" for i, inv in enumerate(analysis.get("hard_invariants", [])[:2])
                 ],
                 "planned_actions": [
                     {
@@ -258,6 +280,7 @@ class MockLLMBackend(BaseLLMBackend):
         if "candidate generator" in sys_str or "candidate" in lower_prompt:
             concise_text = _build_concise_prompt(analysis, raw_prompt)
             hp_text = _build_high_precision_prompt(analysis, raw_prompt)
+            top_rule = analysis["hard_invariants"][0] if analysis.get("hard_invariants") else "Execute task accurately."
             return json.dumps({
                 "candidates": [
                     {
@@ -272,14 +295,14 @@ class MockLLMBackend(BaseLLMBackend):
                         "id": "cand_structured",
                         "strategy": "structured",
                         "prompt_text": hp_text,
-                        "rationale": "Hierarchical Markdown architecture optimizing prompt comprehension and structural adherence.",
+                        "rationale": "High-density instruction with essential technical constraints and zero boilerplate headings.",
                         "preserved_hard_requirements": ["REQ-01", "REQ-02"],
-                        "changes_summary": ["Organized into clear sections", "Included explicit schema delimiter"]
+                        "changes_summary": ["Direct action directive", "Essential constraint bullets"]
                     },
                     {
                         "id": "cand_operational",
                         "strategy": "operational",
-                        "prompt_text": f"You are an automated {analysis['role']}.\nTask: {analysis['cleaned_task']}\nRules:\n1. {analysis['hard_invariants'][0]}\n2. Fail gracefully on missing arguments.",
+                        "prompt_text": f"You are an automated {analysis['role']}.\nTask: {analysis['cleaned_task']}\nRules:\n1. {top_rule}\n2. Fail gracefully on missing arguments.",
                         "rationale": "Operational framing clarifying edge cases and strict execution invariants.",
                         "preserved_hard_requirements": ["REQ-01", "REQ-02"],
                         "changes_summary": ["Explicit edge case handling", "Reinforced strict output invariant"]

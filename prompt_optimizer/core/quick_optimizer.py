@@ -15,20 +15,24 @@ from prompt_optimizer.core.analyzer import PromptAnalyzer
 
 logger = logging.getLogger(__name__)
 
-DUAL_SYNTHESIS_SYSTEM_PROMPT = """You are the Dual-Result Synthesis Engine of an Agentic Prompt Compiler.
-You MUST generate EXACTLY TWO OPTIMIZED PROMPT VARIATIONS for the user:
+DUAL_SYNTHESIS_SYSTEM_PROMPT = """You are an Intelligent, Token-Optimizing Prompt Compiler.
+Given a raw prompt, synthesize two MINIMAL, HIGH-DENSITY, CRYSTAL-CLEAR prompt variations.
 
-Variation 1: 'concise' (Fast & Token-Lean):
-- Keep it highly concise.
-- Focus on brevity: eliminate conversational filler, trim soft stylistic nuances, and formulate direct imperative bullets.
-- Preserves the primary task without excessive precision or verbose guardrails.
-- Maximizes token reduction.
+CRITICAL INSTRUCTIONS:
+1. ZERO COOKIE-CUTTER BOILERPLATE HEADINGS:
+   - DO NOT output '# Role & Persona', '# Context', '# Objective & Scope', '# Strict Execution Invariants', or '# Edge Cases'.
+   - Avoid generic fluff sentences like 'Verify inputs prior to execution' or 'Enforce 100% adherence'.
+2. THINK DYNAMICALLY & BE TOKEN-EFFICIENT:
+   - Strip all polite filler ("please", "could you kindly", "thank you", "as I said before"), conversational padding, and repetitions.
+   - Formulate a direct, powerful imperative opening directive.
+   - Append 2-3 crisp, high-value technical requirements as clean bullet points (e.g. format schema, error handling, negative constraints).
+   - NEVER inflate tokens needlessly. Keep the prompt compact, dense, and clean.
 
-Variation 2: 'high_precision' (Strict & Complete):
-- Much higher precision.
-- Strictly preserve all hard requirements and domain invariants.
-- Include structured sections (# Context, # Objective, # Hard Rules, # Output Schema).
-- Provide explicit edge-case handling so the executing model never deviates or hallucinates.
+Variation 1: 'concise' (Ultra-Compact):
+- 1-2 lines. Maximum token compression. Pure direct instruction + single primary rule.
+
+Variation 2: 'high_precision' (Intelligent & Complete):
+- Clean imperative task statement + 2-3 precise technical bullets. Zero boilerplate headings.
 
 Return STRICT JSON complying with this structure:
 {

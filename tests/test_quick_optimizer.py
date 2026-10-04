@@ -44,7 +44,8 @@ def test_quick_optimizer_returns_dual_results_when_clarified():
     # Verify Result 2: High Precision
     assert resp.high_precision.title == "High Precision (Strict & Complete)"
     assert resp.high_precision.token_count > 0
-    assert "# Role" in resp.high_precision.prompt_text or "Strict Constraints" in resp.high_precision.prompt_text
+    assert len(resp.high_precision.prompt_text) > 0
+    assert "# Role" not in resp.high_precision.prompt_text
 
 
 def test_quick_optimizer_force_generate():
