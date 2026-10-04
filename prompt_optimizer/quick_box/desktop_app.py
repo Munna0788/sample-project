@@ -1,13 +1,11 @@
-"""Desktop Spotlight Quick Box: Floating prompt optimizer summoned by Win+O.
+"""Desktop Spotlight Quick Box: Minimalist prompt optimizer summoned by Win+O.
 Features:
+- Pure minimal layout: Paste text and hit Enter to generate
 - Global system-wide hotkeys Win+O and Alt+O
 - Automatically pops up to foreground when summoned
-- Press Enter directly to optimize prompt (no Ctrl+Enter needed)
-- Directly outputs High Precision prompt with Token Optimization (no JSON/ambiguity popups)
-- Dual Engine support: ⚡ Fast Dynamic Compiler (<10ms) & 🧠 Local Ollama 7B
-- Quick demo presets (CSV Analyst, Support Bot, JSON Extractor, Code Reviewer)
-- Self-contained in-process fallback if HTTP server is offline
-- 1-Key instant copy (Enter / Ctrl+C outside input, Esc to hide)
+- Press Enter directly to generate
+- High Precision prompt with real-time Token Optimization
+- 1-Click copy (Enter / Click to copy, Esc to hide)
 """
 
 import json
@@ -31,48 +29,21 @@ from prompt_optimizer.core.quick_optimizer import QuickOptimizer
 logger = logging.getLogger(__name__)
 API_ENDPOINT = "http://localhost:8000/api/quick-optimize"
 
-PRESETS = {
-    "csv": (
-        "Hey! Could you please act as a senior python developer and write a python function that reads "
-        "a CSV file containing user records and computes the averages for all numerical columns? Please "
-        "make sure it outputs strictly valid JSON only. Please never make up or hallucinate non-existent "
-        "columns, and please handle errors. As I said before, please make sure it's valid JSON! Thank you!"
-    ),
-    "support": (
-        "Hello! Please act as a polite customer support agent for our cloud software company. Always be warm "
-        "and courteous in your greetings. Never share internal IP addresses or server credentials under any "
-        "circumstance. If asked about refunds, direct them to billing.example.com. Keep answers under 3 paragraphs."
-    ),
-    "json": (
-        "You are an automated extraction agent. Parse server log lines from the input. Extract timestamp, "
-        "request_id, and status_code into a clean JSON list. Do not hallucinate missing fields, and do not wrap "
-        "output in conversational text."
-    ),
-    "code": (
-        "Please review this Python code. Check for SQL injection vulnerabilities, async concurrency bottlenecks, "
-        "and memory leaks. Give concrete code diffs and keep explanations brief and technical."
-    ),
-}
-
 
 class SpotlightApp:
-    """Floating Spotlight-style Box that pops up on Win+O and directly optimizes prompts with token metrics."""
+    """Minimalist Spotlight-style Box: Paste and Generate with instant token optimization."""
 
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("⚡ PromptCompiler Spotlight [Win+O]")
-        self.root.geometry("840x620")
+        self.root.title("⚡ Prompt Compiler [Win+O]")
+        self.root.geometry("820x580")
         self.root.configure(bg="#0d1117")
 
-        self._center_window(840, 620)
+        self._center_window(820, 580)
 
-        # Selected backend engine: "mock" (Fast Dynamic) or "ollama" (Local 7B)
-        self.backend_mode = "mock"
-
-        # In-process backup optimizers
-        self.dynamic_mock_backend = MockLLMBackend()
-        self.ollama_backend = OllamaBackend()
-        self.fallback_optimizer = QuickOptimizer(backend=self.dynamic_mock_backend)
+        # In-process backup optimizer
+        self.dynamic_backend = OllamaBackend() if OllamaBackend().is_available() else MockLLMBackend()
+        self.fallback_optimizer = QuickOptimizer(backend=self.dynamic_backend)
 
         self.current_response: Optional[Dict[str, Any]] = None
         self.is_visible = True
@@ -111,7 +82,7 @@ class SpotlightApp:
 
         logo_lbl = tk.Label(
             top_row,
-            text="⚡ PromptCompiler Spotlight",
+            text="⚡ Prompt Compiler",
             font=("Segoe UI", 11, "bold"),
             fg="#58a6ff",
             bg="#161b22"
@@ -120,7 +91,7 @@ class SpotlightApp:
 
         hotkey_tag = tk.Label(
             top_row,
-            text="Win+O / Alt+O",
+            text="Win+O",
             font=("Segoe UI", 9, "bold"),
             fg="#2ea043",
             bg="#21262d",
@@ -129,106 +100,40 @@ class SpotlightApp:
         )
         hotkey_tag.pack(side="left", padx=(10, 0))
 
-        esc_hint = tk.Label(
+        esc_tag = tk.Label(
             top_row,
-            text="Enter: Optimize  |  Esc: Hide  |  Click/Enter: Copy Prompt",
+            text="Esc to hide",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22"
         )
-        esc_hint.pack(side="right")
+        esc_tag.pack(side="right")
 
-        # Presets Bar & Engine Selector
-        presets_bar = tk.Frame(header_frame, bg="#161b22")
-        presets_bar.pack(fill="x", pady=(2, 6))
-
-        tk.Label(
-            presets_bar,
-            text="💡 Presets:",
-            font=("Segoe UI", 8, "bold"),
-            fg="#8b949e",
-            bg="#161b22"
-        ).pack(side="left", padx=(0, 6))
-
-        for key, name in [
-            ("csv", "📊 CSV Analyst"),
-            ("support", "💬 Support Bot"),
-            ("json", "⚡ JSON Extractor"),
-            ("code", "🐍 Code Reviewer")
-        ]:
-            btn = tk.Button(
-                presets_bar,
-                text=name,
-                font=("Segoe UI", 8),
-                bg="#21262d",
-                fg="#c9d1d9",
-                activebackground="#30363d",
-                relief="flat",
-                padx=8,
-                pady=2,
-                cursor="hand2",
-                command=lambda k=key: self.load_preset(k)
-            )
-            btn.pack(side="left", padx=3)
-
-        # Engine selector on the right of presets
-        engine_frame = tk.Frame(presets_bar, bg="#161b22")
-        engine_frame.pack(side="right")
-        tk.Label(engine_frame, text="Engine:", font=("Segoe UI", 8, "bold"), fg="#8b949e", bg="#161b22").pack(side="left", padx=(0, 4))
-
-        self.fast_btn = tk.Button(
-            engine_frame,
-            text="⚡ Fast Dynamic (<10ms)",
-            font=("Segoe UI", 7, "bold"),
-            bg="#238636",
-            fg="white",
-            relief="flat",
-            padx=6,
-            pady=1,
-            cursor="hand2",
-            command=lambda: self.set_backend("mock")
-        )
-        self.fast_btn.pack(side="left", padx=2)
-
-        self.ollama_btn = tk.Button(
-            engine_frame,
-            text="🧠 Ollama 7B",
-            font=("Segoe UI", 7),
-            bg="#21262d",
-            fg="#8b949e",
-            relief="flat",
-            padx=6,
-            pady=1,
-            cursor="hand2",
-            command=lambda: self.set_backend("ollama")
-        )
-        self.ollama_btn.pack(side="left", padx=2)
-
-        # Input text area (Enter directly optimizes!)
+        # Input text area (Enter directly generates!)
         self.input_text = tk.Text(
             header_frame,
-            height=3,
+            height=4,
             bg="#0d1117",
             fg="#f0f6fc",
             insertbackground="#58a6ff",
             font=("Segoe UI", 10),
             wrap="word",
             relief="flat",
-            padx=10,
-            pady=8,
+            padx=12,
+            pady=10,
             highlightthickness=1,
             highlightbackground="#30363d"
         )
-        self.input_text.pack(fill="x", pady=4)
+        self.input_text.pack(fill="x", pady=(4, 6))
         self.input_text.focus_set()
 
         # Action bar under input
         btn_bar = tk.Frame(header_frame, bg="#161b22")
-        btn_bar.pack(fill="x", pady=(4, 0))
+        btn_bar.pack(fill="x")
 
         self.status_lbl = tk.Label(
             btn_bar,
-            text="Type prompt above, then press Enter to optimize directly with token metrics.",
+            text="Paste your prompt, then press Enter to generate.",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22"
@@ -237,14 +142,14 @@ class SpotlightApp:
 
         self.optimize_btn = tk.Button(
             btn_bar,
-            text="⚡ Optimize (Enter)",
+            text="⚡ Generate (Enter)",
             bg="#238636",
             fg="white",
             activebackground="#2ea043",
             font=("Segoe UI", 9, "bold"),
             relief="flat",
-            padx=14,
-            pady=3,
+            padx=16,
+            pady=4,
             cursor="hand2",
             command=self.start_optimization
         )
@@ -252,14 +157,14 @@ class SpotlightApp:
 
         paste_btn = tk.Button(
             btn_bar,
-            text="📋 Paste Clipboard",
+            text="📋 Paste",
             bg="#21262d",
             fg="#c9d1d9",
             activebackground="#30363d",
             font=("Segoe UI", 8),
             relief="flat",
-            padx=8,
-            pady=3,
+            padx=10,
+            pady=4,
             cursor="hand2",
             command=self.paste_clipboard
         )
@@ -273,18 +178,17 @@ class SpotlightApp:
             activebackground="#30363d",
             font=("Segoe UI", 8),
             relief="flat",
-            padx=8,
-            pady=3,
+            padx=10,
+            pady=4,
             cursor="hand2",
             command=self.clear_input
         )
         clear_btn.pack(side="right", padx=(0, 6))
 
-        # Results Container (Dedicated Solely to High Precision with Token Optimization)
+        # Results Container (Clean High Precision Card with Token Metrics)
         self.results_frame = tk.Frame(self.root, bg="#0d1117")
         self.results_frame.pack(fill="both", expand=True, padx=14, pady=6)
 
-        # Dedicated High Precision Card
         self.card_hp = tk.Frame(
             self.results_frame,
             bg="#161b22",
@@ -300,7 +204,7 @@ class SpotlightApp:
 
         self.hp_title = tk.Label(
             hp_head,
-            text="🎯 High Precision Prompt",
+            text="🎯 Optimized Prompt",
             font=("Segoe UI", 10, "bold"),
             fg="#58a6ff",
             bg="#161b22"
@@ -320,7 +224,7 @@ class SpotlightApp:
 
         self.hp_desc = tk.Label(
             self.card_hp,
-            text="Directly compiled with strict invariants and deterministic token optimization.",
+            text="Strict invariants & execution rules enforced with deterministic token optimization.",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22",
@@ -349,7 +253,7 @@ class SpotlightApp:
 
         self.copy_hp_btn = tk.Button(
             footer_row,
-            text="📋 Copy High Precision Prompt (Enter / Click)",
+            text="📋 Copy Prompt (Enter / Click)",
             bg="#238636",
             fg="white",
             activebackground="#2ea043",
@@ -362,22 +266,10 @@ class SpotlightApp:
         )
         self.copy_hp_btn.pack(fill="x")
 
-    def set_backend(self, mode: str):
-        self.backend_mode = mode
-        if mode == "mock":
-            self.fast_btn.config(bg="#238636", fg="white")
-            self.ollama_btn.config(bg="#21262d", fg="#8b949e")
-            self.status_lbl.config(text="Engine: Fast Dynamic Compiler (<10ms).", fg="#58a6ff")
-        else:
-            self.fast_btn.config(bg="#21262d", fg="#8b949e")
-            self.ollama_btn.config(bg="#238636", fg="white")
-            self.status_lbl.config(text="Engine: Local Ollama 7B (Deep reasoning).", fg="#58a6ff")
-
     def _bind_shortcuts(self):
         self.root.bind("<Escape>", lambda e: self.hide_window())
-        self.root.bind("<Control-Return>", lambda e: self.start_optimization())
 
-        # In input_text: ENTER directly optimizes! Shift+Enter creates a new line
+        # In input_text: ENTER directly generates! Shift+Enter creates a new line
         self.input_text.bind("<Return>", self._on_input_enter)
         self.input_text.bind("<Shift-Return>", self._on_input_shift_enter)
 
@@ -427,7 +319,7 @@ class SpotlightApp:
         self.root.state("normal")
         self.root.lift()
         self.root.attributes("-topmost", True)
-        self._center_window(840, 620)
+        self._center_window(820, 580)
         self.is_visible = True
 
         # Win32 force foreground to bypass Windows focus lock
@@ -471,12 +363,6 @@ class SpotlightApp:
         else:
             self.show_window()
 
-    def load_preset(self, key: str):
-        text = PRESETS.get(key, "")
-        self.input_text.delete("1.0", tk.END)
-        self.input_text.insert(tk.END, text)
-        self.start_optimization()
-
     def clear_input(self):
         self.input_text.delete("1.0", tk.END)
         self.input_text.focus_set()
@@ -493,8 +379,7 @@ class SpotlightApp:
         raw = self.input_text.get("1.0", tk.END).strip()
         if not raw:
             return
-        engine_name = "Ollama 7B" if self.backend_mode == "ollama" else "Fast Dynamic Engine"
-        self.status_lbl.config(text=f"⚡ Optimizing directly with {engine_name}...", fg="#58a6ff")
+        self.status_lbl.config(text="⚡ Optimizing prompt...", fg="#58a6ff")
         self.optimize_btn.config(state="disabled")
 
         threading.Thread(
@@ -504,10 +389,10 @@ class SpotlightApp:
         ).start()
 
     def _execute_optimization(self, raw_prompt: str):
-        """Call backend with direct force_generate=True (no JSON/ambiguity popups)."""
+        """Call backend with direct force_generate=True (no questions, pure output)."""
         payload = json.dumps({
             "raw_prompt": raw_prompt,
-            "backend_type": self.backend_mode,
+            "backend_type": "mock",
             "force_generate": True
         }).encode("utf-8")
 
@@ -517,10 +402,8 @@ class SpotlightApp:
             headers={"Content-Type": "application/json"}
         )
 
-        timeout_sec = 60 if self.backend_mode == "ollama" else 5
-
         try:
-            with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 self.root.after(0, self._render_results, data)
                 return
@@ -529,9 +412,7 @@ class SpotlightApp:
 
         # In-process execution fallback
         try:
-            backend = self.ollama_backend if (self.backend_mode == "ollama" and self.ollama_backend.is_available()) else self.dynamic_mock_backend
-            inproc_optimizer = QuickOptimizer(backend=backend)
-            res = inproc_optimizer.optimize_quick(
+            res = self.fallback_optimizer.optimize_quick(
                 raw_prompt=raw_prompt,
                 force_generate=True
             )
@@ -552,22 +433,22 @@ class SpotlightApp:
         self.hp_text.delete("1.0", tk.END)
         self.hp_text.insert(tk.END, hp.get("prompt_text", ""))
 
-        # Prominently display token optimization statistics
+        # Display token optimization metrics
         if orig_t > 0:
             pct = (saved / orig_t) * 100
             if saved > 0:
                 self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens (-{pct:.0f}%)", fg="#2ea043")
             else:
-                self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens (Invariants Preserved)", fg="#58a6ff")
+                self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens", fg="#58a6ff")
         else:
             self.hp_badge.config(text=f"⚡ {hp_t} tokens", fg="#58a6ff")
 
         self.hp_desc.config(
-            text=f"Token Optimization: {orig_t} input tokens ➔ {hp_t} compiled tokens. Invariants & execution rules enforced."
+            text=f"Token Optimization: {orig_t} input tokens ➔ {hp_t} compiled tokens. Invariants enforced."
         )
 
         self.status_lbl.config(
-            text=f"✓ Prompt optimized directly ({hp_t} tokens)! Press Enter or click Copy button.",
+            text=f"✓ Optimized ({hp_t} tokens)! Press Enter or click Copy button.",
             fg="#2ea043"
         )
         self.copy_hp_btn.focus_set()
@@ -578,7 +459,7 @@ class SpotlightApp:
             self.root.clipboard_clear()
             self.root.clipboard_append(txt)
             self.card_hp.config(highlightbackground="#2ea043")
-            self.status_lbl.config(text="✓ High Precision Prompt copied to clipboard! (Esc to hide)", fg="#2ea043")
+            self.status_lbl.config(text="✓ Copied to clipboard! (Esc to hide)", fg="#2ea043")
             self.root.after(1500, lambda: self.card_hp.config(highlightbackground="#30363d"))
 
     def _handle_error(self, err_msg: str):
