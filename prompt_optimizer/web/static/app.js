@@ -102,7 +102,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const toastContainer = document.getElementById("toastContainer");
 
   // State Variables
-  let apiBaseUrl = localStorage.getItem("promptcompiler_api_base") || (window.location.port === "8000" ? "" : "http://localhost:8000");
+  let savedBase = localStorage.getItem("promptcompiler_api_base") || "";
+  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && savedBase.includes("localhost")) {
+    localStorage.removeItem("promptcompiler_api_base");
+    savedBase = "";
+  }
+  let apiBaseUrl = savedBase;
   backendUrlInput.value = apiBaseUrl;
   let latestReport = null;
   let activeClarifications = {};
