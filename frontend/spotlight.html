@@ -3,32 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PromptCompiler Spotlight Box</title>
+  <title>PromptCompiler Spotlight HUD</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: rgba(13, 17, 23, 0.85);
-      backdrop-filter: blur(8px);
+      background-color: rgba(13, 17, 23, 0.9);
+      backdrop-filter: blur(12px);
       font-family: 'Inter', sans-serif;
       color: #f0f6fc;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 24px;
     }
     .spotlight-box {
       width: 100%;
-      max-width: 820px;
+      max-width: 860px;
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 14px;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.7);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.8);
       overflow: hidden;
       display: flex;
       flex-direction: column;
     }
+    /* Search row */
     .search-row {
       display: flex;
       align-items: center;
@@ -37,7 +38,7 @@
       background: #0d1117;
       gap: 12px;
     }
-    .search-icon { font-size: 1.25rem; color: #58a6ff; }
+    .search-icon { font-size: 1.3rem; color: #58a6ff; }
     .search-input {
       flex: 1;
       background: transparent;
@@ -48,32 +49,81 @@
       font-family: 'Inter', sans-serif;
     }
     .search-input::placeholder { color: #8b949e; }
-    .shortcut-badge {
+    .token-badge {
       font-size: 0.75rem;
       color: #8b949e;
       background: #21262d;
       border: 1px solid #30363d;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 6px;
       font-family: 'JetBrains Mono', monospace;
     }
+    .shortcut-badge {
+      font-size: 0.75rem;
+      color: #2ea043;
+      background: rgba(46, 160, 67, 0.15);
+      border: 1px solid rgba(46, 160, 67, 0.4);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+    /* Presets row */
+    .presets-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      background: #161b22;
+      border-bottom: 1px solid #21262d;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .presets-label { font-size: 0.75rem; font-weight: 600; color: #8b949e; white-space: nowrap; }
+    .preset-pill {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .preset-pill:hover { background: #30363d; color: white; border-color: #58a6ff; }
     /* Ambiguity banner */
     .ambiguity-banner {
-      background: rgba(210, 153, 34, 0.15);
+      background: rgba(210, 153, 34, 0.12);
       border-bottom: 1px solid #d29922;
-      padding: 12px 20px;
+      padding: 14px 20px;
       display: none;
       flex-direction: column;
       gap: 8px;
     }
     .ambiguity-title {
       font-size: 0.85rem;
-      font-weight: 600;
+      font-weight: 700;
       color: #d29922;
       display: flex;
       align-items: center;
       gap: 6px;
     }
+    .ambiguity-options {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .option-pill {
+      background: #21262d;
+      border: 1px solid #d29922;
+      color: #e3b341;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .option-pill:hover { background: #d29922; color: black; }
     .ambiguity-input-row { display: flex; gap: 8px; }
     .ambiguity-input {
       flex: 1;
@@ -101,7 +151,7 @@
       gap: 16px;
       padding: 20px;
       background: #0d1117;
-      min-height: 360px;
+      min-height: 380px;
     }
     .result-card {
       background: #161b22;
@@ -117,7 +167,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
     .card-title {
       font-size: 0.9rem;
@@ -136,6 +186,11 @@
       color: #8b949e;
       font-family: 'JetBrains Mono', monospace;
     }
+    .card-desc {
+      font-size: 0.75rem;
+      color: #8b949e;
+      margin-bottom: 8px;
+    }
     .prompt-box {
       flex: 1;
       background: #0d1117;
@@ -147,7 +202,7 @@
       color: #c9d1d9;
       white-space: pre-wrap;
       overflow-y: auto;
-      max-height: 240px;
+      max-height: 250px;
       line-height: 1.5;
     }
     .card-footer {
@@ -199,7 +254,7 @@
       justify-content: center;
       color: #8b949e;
       text-align: center;
-      gap: 8px;
+      gap: 10px;
     }
   </style>
 </head>
@@ -215,13 +270,24 @@
         placeholder="Type or paste prompt... (Press Enter to optimize)" 
         autofocus
       />
+      <span class="token-badge" id="inputTokenBadge">0 tks</span>
       <span class="shortcut-badge">Enter ↵</span>
+    </div>
+
+    <!-- Quick Presets -->
+    <div class="presets-row">
+      <span class="presets-label">💡 Presets:</span>
+      <button class="preset-pill" data-preset="csv">📊 CSV Analyst</button>
+      <button class="preset-pill" data-preset="support">💬 Customer Support</button>
+      <button class="preset-pill" data-preset="json">⚡ JSON Extractor</button>
+      <button class="preset-pill" data-preset="code">🐍 Code Reviewer</button>
     </div>
 
     <!-- Ambiguity / Clarification Dropdown -->
     <div class="ambiguity-banner" id="ambiguityBanner">
-      <div class="ambiguity-title">⚠️ Ambiguity Detected: What did you intend?</div>
+      <div class="ambiguity-title">⚠️ Ambiguity Detected: Please clarify what you want:</div>
       <div id="ambiguityQuestionText" style="font-size:0.85rem; color:#f0f6fc;"></div>
+      <div class="ambiguity-options" id="ambiguityOptions"></div>
       <div class="ambiguity-input-row">
         <input type="text" id="clarifyInput" class="ambiguity-input" placeholder="Type clarification answer..." />
         <button id="applyClarificationBtn" class="btn-apply">Clarify & Run</button>
@@ -231,8 +297,8 @@
     <!-- Dual Results (Concise vs High Precision) -->
     <div class="results-container" id="resultsContainer">
       <div class="empty-state" id="emptyState">
-        <p style="font-size: 1.1rem; color: #f0f6fc;">⚡ Instant Prompt Optimizer Box</p>
-        <p>Type a prompt above and press <strong>Enter</strong> to get <strong>2 results</strong>:</p>
+        <p style="font-size: 1.15rem; font-weight:600; color: #f0f6fc;">⚡ Instant Prompt Optimizer HUD</p>
+        <p>Type a prompt above or pick a preset to generate <strong>2 optimized variations</strong>:</p>
         <p><strong>1. Concise</strong> (Fast & token-lean) &bull; <strong>2. High Precision</strong> (Strict & complete)</p>
       </div>
 
@@ -242,6 +308,7 @@
           <span class="card-title">1️⃣ Concise (Fast & Lean)</span>
           <span class="token-pill" id="conciseTokens">0 tokens</span>
         </div>
+        <div class="card-desc">Minimalist imperative directives, trims soft styling.</div>
         <div class="prompt-box" id="concisePromptText"></div>
         <div class="card-footer">
           <button class="copy-btn" id="copyConciseBtn">📋 Copy Concise [Key: 1]</button>
@@ -254,6 +321,7 @@
           <span class="card-title">2️⃣ High Precision (Strict)</span>
           <span class="token-pill" id="hpTokens">0 tokens</span>
         </div>
+        <div class="card-desc">Structured schema, strict execution invariants & edge cases.</div>
         <div class="prompt-box" id="hpPromptText"></div>
         <div class="card-footer">
           <button class="copy-btn" id="copyHpBtn">📋 Copy High Precision [Key: 2]</button>
@@ -272,6 +340,7 @@
 
   <script>
     const promptInput = document.getElementById("promptInput");
+    const inputTokenBadge = document.getElementById("inputTokenBadge");
     const emptyState = document.getElementById("emptyState");
     const cardConcise = document.getElementById("cardConcise");
     const cardHp = document.getElementById("cardHp");
@@ -283,13 +352,37 @@
     const copyHpBtn = document.getElementById("copyHpBtn");
     const ambiguityBanner = document.getElementById("ambiguityBanner");
     const ambiguityQuestionText = document.getElementById("ambiguityQuestionText");
+    const ambiguityOptions = document.getElementById("ambiguityOptions");
     const clarifyInput = document.getElementById("clarifyInput");
     const applyClarificationBtn = document.getElementById("applyClarificationBtn");
     const statusIndicator = document.getElementById("statusIndicator");
 
-    let currentData = null;
+    const PRESETS = {
+      csv: "Hey! Could you please act as a senior python developer and write a python function that reads a CSV file containing user records and computes the averages for all numerical columns? Please make sure it outputs strictly valid JSON only. Please never make up or hallucinate non-existent columns, and please handle errors. As I said before, please make sure it's valid JSON! Thank you!",
+      support: "Hello! Please act as a polite customer support agent for our cloud software company. Always be warm and courteous in your greetings. Never share internal IP addresses or server credentials under any circumstance. If asked about refunds, direct them to billing.example.com. Keep answers under 3 paragraphs.",
+      json: "You are an automated extraction agent. Parse server log lines from the input. Extract timestamp, request_id, and status_code into a clean JSON list. Do not hallucinate missing fields, and do not wrap output in conversational text.",
+      code: "Please review this Python code. Check for SQL injection vulnerabilities, async concurrency bottlenecks, and memory leaks. Give concrete code diffs and keep explanations brief and technical."
+    };
+
     let activeQuestionId = null;
     let clarificationAnswers = {};
+
+    promptInput.addEventListener("input", () => {
+      const txt = promptInput.value.trim();
+      const tks = txt ? Math.ceil(txt.length / 3.8) : 0;
+      inputTokenBadge.textContent = `${tks} tks`;
+    });
+
+    document.querySelectorAll(".preset-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const p = PRESETS[btn.dataset.preset];
+        if (p) {
+          promptInput.value = p;
+          promptInput.dispatchEvent(new Event("input"));
+          runQuickOptimize();
+        }
+      });
+    });
 
     promptInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -297,6 +390,10 @@
         runQuickOptimize();
       } else if (e.key === "Escape") {
         promptInput.value = "";
+        emptyState.style.display = "flex";
+        cardConcise.style.display = "none";
+        cardHp.style.display = "none";
+        ambiguityBanner.style.display = "none";
       }
     });
 
@@ -315,7 +412,7 @@
       const text = promptInput.value.trim();
       if (!text) return;
 
-      statusIndicator.textContent = "Optimizing dual results...";
+      statusIndicator.textContent = "⚡ Optimizing dual results...";
       statusIndicator.style.color = "#58a6ff";
 
       try {
@@ -329,15 +426,28 @@
           })
         });
         const data = await res.json();
-        currentData = data;
 
         if (data.status === "needs_clarification") {
           const q = data.clarification_questions[0];
           activeQuestionId = q ? q.id : "CLAR-01";
           ambiguityQuestionText.textContent = q ? `${q.question} (Default: ${q.default_assumption})` : "Please clarify expected format or scope.";
+
+          ambiguityOptions.innerHTML = "";
+          const opts = (q && q.suggested_options && q.suggested_options.length) ? q.suggested_options : ["Strict JSON", "Markdown Table", "Plain text bullets"];
+          opts.forEach(opt => {
+            const btn = document.createElement("button");
+            btn.className = "option-pill";
+            btn.textContent = opt;
+            btn.onclick = () => {
+              clarifyInput.value = opt;
+              applyClarificationBtn.click();
+            };
+            ambiguityOptions.appendChild(btn);
+          });
+
           ambiguityBanner.style.display = "flex";
           clarifyInput.focus();
-          statusIndicator.textContent = "Ambiguity detected - please clarify.";
+          statusIndicator.textContent = "Ambiguity detected - pick an option or answer above.";
           statusIndicator.style.color = "#d29922";
           return;
         }
@@ -354,7 +464,7 @@
         hpPromptText.textContent = data.high_precision.prompt_text;
         hpTokens.textContent = `${data.high_precision.token_count} tokens`;
 
-        statusIndicator.textContent = "Done! Press [1] for Concise, [2] for Precision.";
+        statusIndicator.textContent = "✓ Complete! Press [1] for Concise, [2] for Precision.";
         statusIndicator.style.color = "#2ea043";
       } catch (err) {
         statusIndicator.textContent = "Error: " + err.message;

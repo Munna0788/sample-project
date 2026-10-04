@@ -1,4 +1,12 @@
-"""Desktop Spotlight Quick Box: Floating prompt optimizer summoned by Win+O."""
+"""Desktop Spotlight Quick Box: Floating prompt optimizer summoned by Win+O.
+Features:
+- Global system-wide hotkey Win+O (and Alt+O)
+- Dual-result generation: 1️⃣ Concise (Fast & Lean) vs 2️⃣ High Precision (Strict)
+- Ambiguity detection with instant clickable option pills
+- Quick demo presets (CSV Analyst, Support Bot, JSON Extractor, Code Reviewer)
+- Self-contained in-process fallback if HTTP server is offline
+- 1-Key instant copy ([1] for Concise, [2] for High Precision, Esc to hide)
+"""
 
 import json
 import logging
@@ -6,15 +14,42 @@ import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 import urllib.request
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 try:
     import keyboard
 except ImportError:
     keyboard = None
 
+from prompt_optimizer.backends.ollama import OllamaBackend
+from prompt_optimizer.backends.mock import MockLLMBackend
+from prompt_optimizer.core.quick_optimizer import QuickOptimizer
+
 logger = logging.getLogger(__name__)
 API_ENDPOINT = "http://localhost:8000/api/quick-optimize"
+
+PRESETS = {
+    "csv": (
+        "Hey! Could you please act as a senior python developer and write a python function that reads "
+        "a CSV file containing user records and computes the averages for all numerical columns? Please "
+        "make sure it outputs strictly valid JSON only. Please never make up or hallucinate non-existent "
+        "columns, and please handle errors. As I said before, please make sure it's valid JSON! Thank you!"
+    ),
+    "support": (
+        "Hello! Please act as a polite customer support agent for our cloud software company. Always be warm "
+        "and courteous in your greetings. Never share internal IP addresses or server credentials under any "
+        "circumstance. If asked about refunds, direct them to billing.example.com. Keep answers under 3 paragraphs."
+    ),
+    "json": (
+        "You are an automated extraction agent. Parse server log lines from the input. Extract timestamp, "
+        "request_id, and status_code into a clean JSON list. Do not hallucinate missing fields, and do not wrap "
+        "output in conversational text."
+    ),
+    "code": (
+        "Please review this Python code. Check for SQL injection vulnerabilities, async concurrency bottlenecks, "
+        "and memory leaks. Give concrete code diffs and keep explanations brief and technical."
+    ),
+}
 
 
 class SpotlightApp:
@@ -23,12 +58,15 @@ class SpotlightApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("⚡ PromptCompiler Spotlight [Win+O]")
-        self.root.geometry("820x600")
+        self.root.geometry("860x640")
         self.root.configure(bg="#0d1117")
         self.root.attributes("-topmost", True)
 
-        # Center on screen
-        self._center_window(820, 600)
+        self._center_window(860, 640)
+
+        # In-process backup optimizer
+        self.fallback_backend = OllamaBackend() if OllamaBackend().is_available() else MockLLMBackend()
+        self.fallback_optimizer = QuickOptimizer(backend=self.fallback_backend)
 
         self.current_response: Optional[Dict[str, Any]] = None
         self.clarification_answers: Dict[str, str] = {}
@@ -39,7 +77,6 @@ class SpotlightApp:
         self._bind_shortcuts()
         self._setup_global_hotkeys()
 
-        # Handle window close button (X) -> hide to background instead of terminate
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
     def _center_window(self, w: int, h: int):
@@ -51,7 +88,7 @@ class SpotlightApp:
         self.root.geometry(f"{w}x{h}+{x}+{y}")
 
     def _build_ui(self):
-        # Header / Search bar container
+        # Header / Search container
         header_frame = tk.Frame(
             self.root,
             bg="#161b22",
@@ -93,6 +130,28 @@ class SpotlightApp:
             bg="#161b22"
         )
         esc_hint.pack(side="right")
+
+        # Quick Presets Bar
+        presets_bar = tk.Frame(header_frame, bg="#161b22")
+        presets_bar.pack(fill="x", pady=(2, 6))
+
+        tk.Label(presets_bar, text="💡 Presets:", font=("Segoe UI", 8, "bold"), fg="#8b949e", bg="#161b22").pack(side="left", padx=(0, 6))
+
+        for key, name in [("csv", "📊 CSV Analyst"), ("support", "💬 Support Bot"), ("json", "⚡ JSON Extractor"), ("code", "🐍 Code Reviewer")]:
+            btn = tk.Button(
+                presets_bar,
+                text=name,
+                font=("Segoe UI", 7),
+                bg="#21262d",
+                fg="#c9d1d9",
+                activebackground="#30363d",
+                relief="flat",
+                padx=6,
+                pady=1,
+                cursor="hand2",
+                command=lambda k=key: self.load_preset(k)
+            )
+            btn.pack(side="left", padx=2)
 
         # Input text area
         self.input_text = tk.Text(
@@ -197,10 +256,14 @@ class SpotlightApp:
             font=("Segoe UI", 9),
             fg="#f0f6fc",
             bg="#2d2200",
-            wraplength=760,
+            wraplength=800,
             justify="left"
         )
-        self.ambiguity_q_lbl.pack(anchor="w", pady=(2, 6))
+        self.ambiguity_q_lbl.pack(anchor="w", pady=(2, 4))
+
+        # Quick Option Pills Container
+        self.pills_container = tk.Frame(self.ambiguity_frame, bg="#2d2200")
+        self.pills_container.pack(fill="x", pady=(2, 6))
 
         q_input_row = tk.Frame(self.ambiguity_frame, bg="#2d2200")
         q_input_row.pack(fill="x")
@@ -380,49 +443,48 @@ class SpotlightApp:
         self.root.bind("<Control-Return>", lambda e: self.start_optimization())
         self.root.bind("<Alt-Return>", lambda e: self.start_optimization())
 
-        # Hotkeys 1 and 2 to copy
         self.root.bind("1", lambda e: self.copy_concise() if self.current_response and self.root.focus_get() not in [self.input_text, self.clarify_entry] else None)
         self.root.bind("2", lambda e: self.copy_high_precision() if self.current_response and self.root.focus_get() not in [self.input_text, self.clarify_entry] else None)
 
     def _setup_global_hotkeys(self):
-        """Register global Win+O hotkey to summon the Spotlight box."""
+        """Register global Win+O and Alt+O hotkeys."""
         if not keyboard:
             logger.warning("Keyboard library not available. Global hotkey disabled.")
             return
 
         def on_hotkey_pressed():
-            # Dispatch to Tkinter main thread safely
             self.root.after(0, self.toggle_window)
 
         try:
             keyboard.add_hotkey("win+o", on_hotkey_pressed)
-            # Also bind alt+o as a seamless alternative
             keyboard.add_hotkey("alt+o", on_hotkey_pressed)
             logger.info("Registered global hotkeys: Win+O and Alt+O")
         except Exception as e:
             logger.error(f"Failed to register global hotkey: {e}")
 
     def show_window(self):
-        """Summon and focus the window on screen."""
         self.root.deiconify()
         self.root.attributes("-topmost", True)
-        self._center_window(820, 600)
+        self._center_window(860, 640)
         self.root.focus_force()
         self.input_text.focus_set()
         self.is_visible = True
 
     def hide_window(self):
-        """Hide window to background."""
         self.root.withdraw()
         self.is_visible = False
 
     def toggle_window(self):
-        """Toggle visible/hidden state when hotkey is pressed."""
         if self.is_visible:
-            # If already open and focused, hide; if open but unfocused, bring forward
             self.show_window()
         else:
             self.show_window()
+
+    def load_preset(self, key: str):
+        text = PRESETS.get(key, "")
+        self.input_text.delete("1.0", tk.END)
+        self.input_text.insert(tk.END, text)
+        self.start_optimization()
 
     def clear_input(self):
         self.input_text.delete("1.0", tk.END)
@@ -440,16 +502,17 @@ class SpotlightApp:
         raw = self.input_text.get("1.0", tk.END).strip()
         if not raw:
             return
-        self.status_lbl.config(text="⚡ Compiling prompt in background...", fg="#58a6ff")
+        self.status_lbl.config(text="⚡ Compiling prompt...", fg="#58a6ff")
         self.optimize_btn.config(state="disabled")
 
         threading.Thread(
-            target=self._call_backend,
+            target=self._execute_optimization,
             args=(raw, self.clarification_answers),
             daemon=True
         ).start()
 
-    def _call_backend(self, raw_prompt: str, answers: Dict[str, str]):
+    def _execute_optimization(self, raw_prompt: str, answers: Dict[str, str]):
+        """Call FastAPI backend if up, or fall back to in-process engine seamlessly."""
         payload = json.dumps({
             "raw_prompt": raw_prompt,
             "backend_type": "mock",
@@ -463,9 +526,21 @@ class SpotlightApp:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 self.root.after(0, self._render_results, data)
+                return
+        except Exception as e:
+            logger.info(f"API endpoint not reachable ({e}). Using in-process engine fallback.")
+
+        # In-process execution fallback
+        try:
+            res = self.fallback_optimizer.optimize_quick(
+                raw_prompt=raw_prompt,
+                clarification_answers=answers if answers else None,
+            )
+            data = res.model_dump()
+            self.root.after(0, self._render_results, data)
         except Exception as e:
             self.root.after(0, self._handle_error, str(e))
 
@@ -482,9 +557,32 @@ class SpotlightApp:
                     text=f"Question: {q.get('question')}\nDefault: {q.get('default_assumption')}"
                 )
                 self.clarify_entry.delete(0, tk.END)
+
+                # Render Clickable Option Pills
+                for widget in self.pills_container.winfo_children():
+                    widget.destroy()
+
+                options = q.get("suggested_options", []) or ["Strict JSON", "Markdown Table", "Plain text bullets"]
+                for opt in options:
+                    pill_btn = tk.Button(
+                        self.pills_container,
+                        text=opt,
+                        bg="#21262d",
+                        fg="#e3b341",
+                        activebackground="#d29922",
+                        activeforeground="black",
+                        font=("Segoe UI", 8),
+                        relief="flat",
+                        padx=8,
+                        pady=2,
+                        cursor="hand2",
+                        command=lambda o=opt: self.choose_option(o)
+                    )
+                    pill_btn.pack(side="left", padx=3)
+
                 self.ambiguity_frame.pack(fill="x", padx=14, pady=(0, 6), before=self.results_frame)
                 self.clarify_entry.focus_set()
-                self.status_lbl.config(text="Ambiguity detected. Answer question above or press Apply.", fg="#d29922")
+                self.status_lbl.config(text="Ambiguity detected. Click an option or answer above.", fg="#d29922")
                 return
 
         # Status == "ready"
@@ -512,6 +610,11 @@ class SpotlightApp:
             fg="#2ea043"
         )
 
+    def choose_option(self, option_text: str):
+        self.clarify_entry.delete(0, tk.END)
+        self.clarify_entry.insert(tk.END, option_text)
+        self.submit_clarification()
+
     def submit_clarification(self):
         val = self.clarify_entry.get().strip()
         if self.active_question_id and val:
@@ -523,14 +626,18 @@ class SpotlightApp:
         if txt:
             self.root.clipboard_clear()
             self.root.clipboard_append(txt)
+            self.card_concise.config(highlightbackground="#2ea043")
             self.status_lbl.config(text="✓ Concise Prompt copied to clipboard! (Press Esc to hide)", fg="#2ea043")
+            self.root.after(1500, lambda: self.card_concise.config(highlightbackground="#30363d"))
 
     def copy_high_precision(self):
         txt = self.c2_text.get("1.0", tk.END).strip()
         if txt:
             self.root.clipboard_clear()
             self.root.clipboard_append(txt)
+            self.card_hp.config(highlightbackground="#58a6ff")
             self.status_lbl.config(text="✓ High Precision Prompt copied to clipboard! (Press Esc to hide)", fg="#58a6ff")
+            self.root.after(1500, lambda: self.card_hp.config(highlightbackground="#30363d"))
 
     def _handle_error(self, err_msg: str):
         self.optimize_btn.config(state="normal")
