@@ -57,3 +57,21 @@ def test_quick_optimizer_force_generate():
     assert resp.status == "ready"
     assert resp.concise is not None
     assert resp.high_precision is not None
+
+
+def test_quick_optimizer_outputs_are_dynamic_for_different_inputs():
+    backend = MockLLMBackend()
+    quick_opt = QuickOptimizer(backend=backend)
+
+    p1 = "Write a Python script to monitor CPU usage and alert if above 80%"
+    p2 = "Draft a polite customer support email apologizing for a delayed package"
+
+    res1 = quick_opt.optimize_quick(p1, force_generate=True)
+    res2 = quick_opt.optimize_quick(p2, force_generate=True)
+
+    # Ensure high precision prompt is distinct and tailored to each input
+    assert res1.high_precision.prompt_text != res2.high_precision.prompt_text
+    assert "Python" in res1.high_precision.prompt_text
+    assert "Customer" in res2.high_precision.prompt_text or "Support" in res2.high_precision.prompt_text
+    assert "CPU" in res1.high_precision.prompt_text or "monitor" in res1.high_precision.prompt_text
+

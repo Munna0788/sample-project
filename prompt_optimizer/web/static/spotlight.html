@@ -279,13 +279,19 @@
       <span class="shortcut-badge">Win + O</span>
     </div>
 
-    <!-- Quick Presets -->
+    <!-- Quick Presets & Engine Selector -->
     <div class="presets-row">
       <span class="presets-label">💡 Presets:</span>
       <button class="preset-pill" data-preset="csv">📊 CSV Analyst</button>
       <button class="preset-pill" data-preset="support">💬 Customer Support</button>
       <button class="preset-pill" data-preset="json">⚡ JSON Extractor</button>
       <button class="preset-pill" data-preset="code">🐍 Code Reviewer</button>
+      <div style="flex:1;"></div>
+      <span class="presets-label">Engine:</span>
+      <select id="engineSelect" style="background:#21262d; border:1px solid #30363d; color:#58a6ff; font-weight:600; border-radius:6px; font-size:0.75rem; padding:3px 8px; outline:none; cursor:pointer;">
+        <option value="mock">⚡ Fast Dynamic (&lt;10ms)</option>
+        <option value="ollama">🧠 Local Ollama 7B</option>
+      </select>
     </div>
 
     <!-- Ambiguity / Clarification Dropdown -->
@@ -344,6 +350,7 @@
     const clarifyInput = document.getElementById("clarifyInput");
     const applyClarificationBtn = document.getElementById("applyClarificationBtn");
     const statusIndicator = document.getElementById("statusIndicator");
+    const engineSelect = document.getElementById("engineSelect");
 
     const PRESETS = {
       csv: "Hey! Could you please act as a senior python developer and write a python function that reads a CSV file containing user records and computes the averages for all numerical columns? Please make sure it outputs strictly valid JSON only. Please never make up or hallucinate non-existent columns, and please handle errors. As I said before, please make sure it's valid JSON! Thank you!",
@@ -400,7 +407,9 @@
       const text = promptInput.value.trim();
       if (!text) return;
 
-      statusIndicator.textContent = "⚡ Compiling high precision prompt...";
+      const engine = engineSelect.value;
+      const engineName = engine === "ollama" ? "Ollama 7B (Deep reasoning)" : "Fast Dynamic Engine (<10ms)";
+      statusIndicator.textContent = `⚡ Compiling with ${engineName}...`;
       statusIndicator.style.color = "#58a6ff";
 
       try {
@@ -409,7 +418,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             raw_prompt: text,
-            backend_type: "mock",
+            backend_type: engine,
             clarification_answers: clarificationAnswers
           })
         });

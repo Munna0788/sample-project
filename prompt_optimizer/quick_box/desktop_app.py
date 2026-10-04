@@ -2,7 +2,8 @@
 Features:
 - Global system-wide hotkeys Win+O and Alt+O
 - Automatically pops up to foreground when summoned
-- Displays exclusively the High Precision optimized prompt
+- Displays exclusively the High Precision optimized prompt (dynamically tailored to input)
+- Dual Engine support: ⚡ Fast Dynamic Compiler (<10ms) & 🧠 Local Ollama 7B
 - Ambiguity detection with 1-click option pills
 - Quick demo presets (CSV Analyst, Support Bot, JSON Extractor, Code Reviewer)
 - Self-contained in-process fallback if HTTP server is offline
@@ -65,9 +66,13 @@ class SpotlightApp:
 
         self._center_window(840, 620)
 
-        # In-process backup optimizer
-        self.fallback_backend = OllamaBackend() if OllamaBackend().is_available() else MockLLMBackend()
-        self.fallback_optimizer = QuickOptimizer(backend=self.fallback_backend)
+        # Selected backend engine: "mock" (Fast Dynamic) or "ollama" (Local 7B)
+        self.backend_mode = "mock"
+
+        # In-process backup optimizers
+        self.dynamic_mock_backend = MockLLMBackend()
+        self.ollama_backend = OllamaBackend()
+        self.fallback_optimizer = QuickOptimizer(backend=self.dynamic_mock_backend)
 
         self.current_response: Optional[Dict[str, Any]] = None
         self.clarification_answers: Dict[str, str] = {}
@@ -117,7 +122,7 @@ class SpotlightApp:
 
         hotkey_tag = tk.Label(
             top_row,
-            text="Global Hotkey: Win+O (or Alt+O)",
+            text="Win+O / Alt+O",
             font=("Segoe UI", 9, "bold"),
             fg="#2ea043",
             bg="#21262d",
@@ -135,7 +140,7 @@ class SpotlightApp:
         )
         esc_hint.pack(side="right")
 
-        # Presets Bar
+        # Presets Bar & Engine Selector
         presets_bar = tk.Frame(header_frame, bg="#161b22")
         presets_bar.pack(fill="x", pady=(2, 6))
 
@@ -167,6 +172,39 @@ class SpotlightApp:
                 command=lambda k=key: self.load_preset(k)
             )
             btn.pack(side="left", padx=3)
+
+        # Engine selector on the right of presets
+        engine_frame = tk.Frame(presets_bar, bg="#161b22")
+        engine_frame.pack(side="right")
+        tk.Label(engine_frame, text="Engine:", font=("Segoe UI", 8, "bold"), fg="#8b949e", bg="#161b22").pack(side="left", padx=(0, 4))
+
+        self.fast_btn = tk.Button(
+            engine_frame,
+            text="⚡ Fast Dynamic (<10ms)",
+            font=("Segoe UI", 7, "bold"),
+            bg="#238636",
+            fg="white",
+            relief="flat",
+            padx=6,
+            pady=1,
+            cursor="hand2",
+            command=lambda: self.set_backend("mock")
+        )
+        self.fast_btn.pack(side="left", padx=2)
+
+        self.ollama_btn = tk.Button(
+            engine_frame,
+            text="🧠 Ollama 7B",
+            font=("Segoe UI", 7),
+            bg="#21262d",
+            fg="#8b949e",
+            relief="flat",
+            padx=6,
+            pady=1,
+            cursor="hand2",
+            command=lambda: self.set_backend("ollama")
+        )
+        self.ollama_btn.pack(side="left", padx=2)
 
         # Input text area
         self.input_text = tk.Text(
@@ -327,13 +365,14 @@ class SpotlightApp:
         hp_head = tk.Frame(self.card_hp, bg="#161b22")
         hp_head.pack(fill="x")
 
-        tk.Label(
+        self.hp_title = tk.Label(
             hp_head,
             text="🎯 High Precision Prompt (Strict & Complete)",
             font=("Segoe UI", 10, "bold"),
             fg="#58a6ff",
             bg="#161b22"
-        ).pack(side="left")
+        )
+        self.hp_title.pack(side="left")
 
         self.hp_badge = tk.Label(
             hp_head,
@@ -390,6 +429,17 @@ class SpotlightApp:
         )
         self.copy_hp_btn.pack(fill="x")
 
+    def set_backend(self, mode: str):
+        self.backend_mode = mode
+        if mode == "mock":
+            self.fast_btn.config(bg="#238636", fg="white")
+            self.ollama_btn.config(bg="#21262d", fg="#8b949e")
+            self.status_lbl.config(text="Engine: Fast Dynamic Compiler (<10ms).", fg="#58a6ff")
+        else:
+            self.fast_btn.config(bg="#21262d", fg="#8b949e")
+            self.ollama_btn.config(bg="#238636", fg="white")
+            self.status_lbl.config(text="Engine: Local Ollama 7B (Deep reasoning).", fg="#58a6ff")
+
     def _bind_shortcuts(self):
         self.root.bind("<Escape>", lambda e: self.hide_window())
         self.root.bind("<Control-Return>", lambda e: self.start_optimization())
@@ -442,7 +492,6 @@ class SpotlightApp:
             hwnd = self.root.winfo_id()
             root_hwnd = user32.GetAncestor(hwnd, 2) or hwnd  # GA_ROOT = 2
 
-            # SW_RESTORE = 9, SW_SHOW = 5
             user32.ShowWindow(root_hwnd, 9)
 
             fg_hwnd = user32.GetForegroundWindow()
@@ -499,7 +548,8 @@ class SpotlightApp:
         raw = self.input_text.get("1.0", tk.END).strip()
         if not raw:
             return
-        self.status_lbl.config(text="⚡ Compiling high precision prompt...", fg="#58a6ff")
+        engine_name = "Ollama 7B" if self.backend_mode == "ollama" else "Fast Dynamic Engine"
+        self.status_lbl.config(text=f"⚡ Compiling with {engine_name}...", fg="#58a6ff")
         self.optimize_btn.config(state="disabled")
 
         threading.Thread(
@@ -512,7 +562,7 @@ class SpotlightApp:
         """Call FastAPI backend if up, or fall back to in-process engine seamlessly."""
         payload = json.dumps({
             "raw_prompt": raw_prompt,
-            "backend_type": "mock",
+            "backend_type": self.backend_mode,
             "clarification_answers": answers if answers else None
         }).encode("utf-8")
 
@@ -522,8 +572,10 @@ class SpotlightApp:
             headers={"Content-Type": "application/json"}
         )
 
+        timeout_sec = 60 if self.backend_mode == "ollama" else 5
+
         try:
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 self.root.after(0, self._render_results, data)
                 return
@@ -532,7 +584,9 @@ class SpotlightApp:
 
         # In-process execution fallback
         try:
-            res = self.fallback_optimizer.optimize_quick(
+            backend = self.ollama_backend if (self.backend_mode == "ollama" and self.ollama_backend.is_available()) else self.dynamic_mock_backend
+            inproc_optimizer = QuickOptimizer(backend=backend)
+            res = inproc_optimizer.optimize_quick(
                 raw_prompt=raw_prompt,
                 clarification_answers=answers if answers else None,
             )
