@@ -30,6 +30,15 @@ class MockLLMBackend(BaseLLMBackend):
         sys_str = (system_instruction or "").lower()
         lower_prompt = prompt.lower()
 
+        # Quick Box Dual Synthesis Prompt
+        if "dual-result" in sys_str or "dual synthesis" in sys_str or "synthesize both" in lower_prompt:
+            return json.dumps({
+                "concise_prompt": "Extract data and compute summary statistics.\n- Format: Valid JSON\n- Rule: No hallucinated data.",
+                "concise_rationale": "High token compression, leaves out soft styling to maximize brevity.",
+                "high_precision_prompt": "# Role\nData Specialist\n\n# Objective\nParse input data and output exact summary metrics.\n\n# Strict Constraints\n1. Output schema must be strictly valid JSON.\n2. Invariant: Null values must be explicit; do not fabricate numbers.\n3. Fail gracefully on parse errors.",
+                "high_precision_rationale": "Explicit execution guardrails, structured layout, and 100% hard invariant preservation."
+            })
+
         # Stage 2: Planning Prompt (Check planner first!)
         if "planner" in sys_str or "optimization plan" in lower_prompt:
             return json.dumps({

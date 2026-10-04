@@ -334,5 +334,13 @@ def test_backend(
         console.print(f"[bold red]Failed:[/bold red] Backend '{llm.get_model_name()}' is NOT reachable.")
 
 
+@app.command()
+def spotlight():
+    """Launch the floating Desktop Spotlight Box."""
+    console.print("[bold cyan]Launching PromptCompiler Spotlight Box... (Press Esc to close)[/bold cyan]")
+    from prompt_optimizer.quick_box.desktop_app import launch
+    launch()
+
+
 if __name__ == "__main__":
     app()

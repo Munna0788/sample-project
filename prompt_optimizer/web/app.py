@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 
 from prompt_optimizer.models.analysis import AnalysisResult
 from prompt_optimizer.models.report import FinalOptimizationReport, OptimizationObjective
+from prompt_optimizer.models.quick import QuickOptimizeRequest, QuickOptimizeResponse
+from prompt_optimizer.core.quick_optimizer import QuickOptimizer
 from prompt_optimizer.backends.ollama import OllamaBackend
 from prompt_optimizer.backends.openai_compat import OpenAICompatibleBackend
 from prompt_optimizer.backends.gemini import GeminiBackend
@@ -128,6 +130,20 @@ def analyze_prompt(req: AnalyzeRequest):
         return agent.analyzer.analyze(req.raw_prompt)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.post("/api/quick-optimize", response_model=QuickOptimizeResponse)
+def quick_optimize_prompt(req: QuickOptimizeRequest):
+    """Fast dual-result prompt optimization (Concise vs High Precision) for Spotlight/Box."""
+    backend = get_backend(req.backend_type, req.model_name)
+    quick_opt = QuickOptimizer(backend=backend)
+    try:
+        return quick_opt.optimize_quick(
+            raw_prompt=req.raw_prompt,
+            clarification_answers=req.clarification_answers,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Quick optimization failed: {str(e)}")
 
 
 @app.post("/api/optimize", response_model=FinalOptimizationReport)

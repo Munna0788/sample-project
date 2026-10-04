@@ -29,6 +29,11 @@ from prompt_optimizer.models.report import (
     OptimizationIterationLog,
     FinalOptimizationReport,
 )
+from prompt_optimizer.models.quick import (
+    QuickOptimizeRequest,
+    QuickCandidateResult,
+    QuickOptimizeResponse,
+)
 
 __all__ = [
     "RequirementType",

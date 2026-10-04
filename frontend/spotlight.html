@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptCompiler Spotlight Box</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: rgba(13, 17, 23, 0.85);
+      backdrop-filter: blur(8px);
+      font-family: 'Inter', sans-serif;
+      color: #f0f6fc;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .spotlight-box {
+      width: 100%;
+      max-width: 820px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.7);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .search-row {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #30363d;
+      background: #0d1117;
+      gap: 12px;
+    }
+    .search-icon { font-size: 1.25rem; color: #58a6ff; }
+    .search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #f0f6fc;
+      font-size: 1.05rem;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+    }
+    .search-input::placeholder { color: #8b949e; }
+    .shortcut-badge {
+      font-size: 0.75rem;
+      color: #8b949e;
+      background: #21262d;
+      border: 1px solid #30363d;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Ambiguity banner */
+    .ambiguity-banner {
+      background: rgba(210, 153, 34, 0.15);
+      border-bottom: 1px solid #d29922;
+      padding: 12px 20px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ambiguity-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #d29922;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ambiguity-input-row { display: flex; gap: 8px; }
+    .ambiguity-input {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #d29922;
+      border-radius: 6px;
+      padding: 6px 12px;
+      color: #f0f6fc;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .btn-apply {
+      background: #d29922;
+      color: black;
+      border: none;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    /* Dual Results Container */
+    .results-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px;
+      background: #0d1117;
+      min-height: 360px;
+    }
+    .result-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.2s;
+    }
+    .result-card:hover { border-color: #58a6ff; }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-concise .card-title { color: #2ea043; }
+    .card-hp .card-title { color: #58a6ff; }
+    .token-pill {
+      font-size: 0.75rem;
+      background: #21262d;
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: #8b949e;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .prompt-box {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      max-height: 240px;
+      line-height: 1.5;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+    .copy-btn {
+      width: 100%;
+      background: #21262d;
+      color: #f0f6fc;
+      border: 1px solid #30363d;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: #30363d; color: white; }
+    /* Footer */
+    .spotlight-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+    .keys-hint span {
+      background: #21262d;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #c9d1d9;
+    }
+    .empty-state {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #8b949e;
+      text-align: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="spotlight-box">
+    <!-- Search / Prompt Input -->
+    <div class="search-row">
+      <span class="search-icon">⚡</span>
+      <input 
+        type="text" 
+        id="promptInput" 
+        class="search-input" 
+        placeholder="Type or paste prompt... (Press Enter to optimize)" 
+        autofocus
+      />
+      <span class="shortcut-badge">Enter ↵</span>
+    </div>
+
+    <!-- Ambiguity / Clarification Dropdown -->
+    <div class="ambiguity-banner" id="ambiguityBanner">
+      <div class="ambiguity-title">⚠️ Ambiguity Detected: What did you intend?</div>
+      <div id="ambiguityQuestionText" style="font-size:0.85rem; color:#f0f6fc;"></div>
+      <div class="ambiguity-input-row">
+        <input type="text" id="clarifyInput" class="ambiguity-input" placeholder="Type clarification answer..." />
+        <button id="applyClarificationBtn" class="btn-apply">Clarify & Run</button>
+      </div>
+    </div>
+
+    <!-- Dual Results (Concise vs High Precision) -->
+    <div class="results-container" id="resultsContainer">
+      <div class="empty-state" id="emptyState">
+        <p style="font-size: 1.1rem; color: #f0f6fc;">⚡ Instant Prompt Optimizer Box</p>
+        <p>Type a prompt above and press <strong>Enter</strong> to get <strong>2 results</strong>:</p>
+        <p><strong>1. Concise</strong> (Fast & token-lean) &bull; <strong>2. High Precision</strong> (Strict & complete)</p>
+      </div>
+
+      <!-- Result 1: Concise -->
+      <div class="result-card card-concise" id="cardConcise" style="display:none;">
+        <div class="card-header">
+          <span class="card-title">1️⃣ Concise (Fast & Lean)</span>
+          <span class="token-pill" id="conciseTokens">0 tokens</span>
+        </div>
+        <div class="prompt-box" id="concisePromptText"></div>
+        <div class="card-footer">
+          <button class="copy-btn" id="copyConciseBtn">📋 Copy Concise [Key: 1]</button>
+        </div>
+      </div>
+
+      <!-- Result 2: High Precision -->
+      <div class="result-card card-hp" id="cardHp" style="display:none;">
+        <div class="card-header">
+          <span class="card-title">2️⃣ High Precision (Strict)</span>
+          <span class="token-pill" id="hpTokens">0 tokens</span>
+        </div>
+        <div class="prompt-box" id="hpPromptText"></div>
+        <div class="card-footer">
+          <button class="copy-btn" id="copyHpBtn">📋 Copy High Precision [Key: 2]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Controls -->
+    <div class="spotlight-footer">
+      <div class="keys-hint">
+        <span>Enter</span> Optimize &bull; <span>1</span> Copy Concise &bull; <span>2</span> Copy Precision &bull; <span>Esc</span> Dismiss
+      </div>
+      <div id="statusIndicator">Ready</div>
+    </div>
+  </div>
+
+  <script>
+    const promptInput = document.getElementById("promptInput");
+    const emptyState = document.getElementById("emptyState");
+    const cardConcise = document.getElementById("cardConcise");
+    const cardHp = document.getElementById("cardHp");
+    const concisePromptText = document.getElementById("concisePromptText");
+    const hpPromptText = document.getElementById("hpPromptText");
+    const conciseTokens = document.getElementById("conciseTokens");
+    const hpTokens = document.getElementById("hpTokens");
+    const copyConciseBtn = document.getElementById("copyConciseBtn");
+    const copyHpBtn = document.getElementById("copyHpBtn");
+    const ambiguityBanner = document.getElementById("ambiguityBanner");
+    const ambiguityQuestionText = document.getElementById("ambiguityQuestionText");
+    const clarifyInput = document.getElementById("clarifyInput");
+    const applyClarificationBtn = document.getElementById("applyClarificationBtn");
+    const statusIndicator = document.getElementById("statusIndicator");
+
+    let currentData = null;
+    let activeQuestionId = null;
+    let clarificationAnswers = {};
+
+    promptInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        runQuickOptimize();
+      } else if (e.key === "Escape") {
+        promptInput.value = "";
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.target === promptInput || e.target === clarifyInput) return;
+      if (e.key === "1") {
+        copyConcise();
+      } else if (e.key === "2") {
+        copyHighPrecision();
+      } else if (e.key === "Escape") {
+        window.close();
+      }
+    });
+
+    async function runQuickOptimize() {
+      const text = promptInput.value.trim();
+      if (!text) return;
+
+      statusIndicator.textContent = "Optimizing dual results...";
+      statusIndicator.style.color = "#58a6ff";
+
+      try {
+        const res = await fetch("/api/quick-optimize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            raw_prompt: text,
+            backend_type: "mock",
+            clarification_answers: clarificationAnswers
+          })
+        });
+        const data = await res.json();
+        currentData = data;
+
+        if (data.status === "needs_clarification") {
+          const q = data.clarification_questions[0];
+          activeQuestionId = q ? q.id : "CLAR-01";
+          ambiguityQuestionText.textContent = q ? `${q.question} (Default: ${q.default_assumption})` : "Please clarify expected format or scope.";
+          ambiguityBanner.style.display = "flex";
+          clarifyInput.focus();
+          statusIndicator.textContent = "Ambiguity detected - please clarify.";
+          statusIndicator.style.color = "#d29922";
+          return;
+        }
+
+        // Status == ready
+        ambiguityBanner.style.display = "none";
+        emptyState.style.display = "none";
+        cardConcise.style.display = "flex";
+        cardHp.style.display = "flex";
+
+        concisePromptText.textContent = data.concise.prompt_text;
+        conciseTokens.textContent = `${data.concise.token_count} tokens (-${data.concise.reduction_percentage.toFixed(0)}%)`;
+
+        hpPromptText.textContent = data.high_precision.prompt_text;
+        hpTokens.textContent = `${data.high_precision.token_count} tokens`;
+
+        statusIndicator.textContent = "Done! Press [1] for Concise, [2] for Precision.";
+        statusIndicator.style.color = "#2ea043";
+      } catch (err) {
+        statusIndicator.textContent = "Error: " + err.message;
+        statusIndicator.style.color = "#f85149";
+      }
+    }
+
+    applyClarificationBtn.addEventListener("click", () => {
+      const ans = clarifyInput.value.trim();
+      if (activeQuestionId && ans) {
+        clarificationAnswers[activeQuestionId] = ans;
+      }
+      runQuickOptimize();
+    });
+
+    clarifyInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        applyClarificationBtn.click();
+      }
+    });
+
+    function copyConcise() {
+      if (concisePromptText.textContent) {
+        navigator.clipboard.writeText(concisePromptText.textContent);
+        copyConciseBtn.textContent = "✓ Copied to Clipboard!";
+        setTimeout(() => { copyConciseBtn.textContent = "📋 Copy Concise [Key: 1]"; }, 1500);
+      }
+    }
+
+    function copyHighPrecision() {
+      if (hpPromptText.textContent) {
+        navigator.clipboard.writeText(hpPromptText.textContent);
+        copyHpBtn.textContent = "✓ Copied to Clipboard!";
+        setTimeout(() => { copyHpBtn.textContent = "📋 Copy High Precision [Key: 2]"; }, 1500);
+      }
+    }
+
+    copyConciseBtn.addEventListener("click", copyConcise);
+    copyHpBtn.addEventListener("click", copyHighPrecision);
+  </script>
+</body>
+</html>
