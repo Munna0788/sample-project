@@ -13,10 +13,13 @@ from rich.prompt import Prompt
 
 from prompt_optimizer.backends.ollama import OllamaBackend
 from prompt_optimizer.backends.openai_compat import OpenAICompatibleBackend
+from prompt_optimizer.backends.gemini import GeminiBackend
 from prompt_optimizer.backends.mock import MockLLMBackend
 from prompt_optimizer.backends.base import BaseLLMBackend
 from prompt_optimizer.models.report import OptimizationObjective
 from prompt_optimizer.core.optimizer import PromptOptimizerAgent
+from prompt_optimizer.storage.history import HistoryStore
+from prompt_optimizer.benchmarks.suite import BenchmarkSuite
 
 app = typer.Typer(
     name="prompt-opt",
@@ -32,6 +35,7 @@ if sys.platform == "win32":
         pass
 
 console = Console(force_terminal=True, legacy_windows=False)
+history_store = HistoryStore()
 
 
 def resolve_backend(backend_type: str, model_name: Optional[str]) -> BaseLLMBackend:
@@ -44,9 +48,10 @@ def resolve_backend(backend_type: str, model_name: Optional[str]) -> BaseLLMBack
             console.print("[yellow]Warning: Local Ollama is not reachable on localhost:11434. Falling back to MockLLMBackend.[/yellow]")
             return MockLLMBackend()
         return backend
+    elif b_type == "gemini":
+        return GeminiBackend(model=model_name or "gemini-1.5-flash")
     elif b_type == "openai":
-        model = model_name or "gpt-4o-mini"
-        return OpenAICompatibleBackend(model=model)
+        return OpenAICompatibleBackend(model=model_name or "gpt-4o-mini")
     elif b_type == "mock":
         return MockLLMBackend(model=model_name or "mock-agentic-v1")
     else:
@@ -59,7 +64,7 @@ def optimize(
     prompt: Optional[str] = typer.Argument(None, help="The raw prompt text to optimize"),
     file: Optional[str] = typer.Option(None, "--file", "-f", help="Read raw prompt from text file"),
     objective: str = typer.Option("balanced", "--objective", "-o", help="balanced | maximum_quality | maximum_compression"),
-    backend: str = typer.Option("ollama", "--backend", "-b", help="ollama | openai | mock"),
+    backend: str = typer.Option("ollama", "--backend", "-b", help="ollama | gemini | openai | mock"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="LLM Model identifier"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt user for clarifications interactively"),
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON report"),
@@ -92,7 +97,6 @@ def optimize(
         console.print("[red]Error: Empty prompt provided.[/red]")
         raise typer.Exit(1)
 
-    # Map objective
     obj_map = {
         "balanced": OptimizationObjective.BALANCED,
         "maximum_quality": OptimizationObjective.MAXIMUM_QUALITY,
@@ -117,8 +121,8 @@ def optimize(
 
         if initial_analysis.clarification_questions:
             console.print(Panel(
-                "[bold yellow]Clarifications Needed[/bold yellow]\n"
-                "The optimizer detected ambiguous or missing constraints. Please answer to improve accuracy.",
+                "[bold yellow]Clarifications Detected[/bold yellow]\n"
+                "The optimizer identified ambiguous requirements. Please answer or press Enter for default.",
                 title="Targeted Clarifications",
                 border_style="yellow"
             ))
@@ -127,7 +131,6 @@ def optimize(
                 if ans.strip():
                     clarification_answers[q.id] = ans.strip()
 
-    # Progress bar run
     with Progress(
         SpinnerColumn("line"),
         TextColumn("[bold green]{task.description}[/bold green]"),
@@ -159,13 +162,16 @@ def optimize(
             progress_callback=on_progress,
         )
 
+    # Persist to SQLite history
+    run_id = history_store.save_run(report)
+
     if json_output:
         print(report.model_dump_json(indent=2))
         return
 
-    # Render Beautiful Rich Report
     console.print("\n")
     console.print(Panel(
+        f"[bold cyan]Run ID:[/bold cyan] {run_id}\n"
         f"[bold cyan]Selected Strategy:[/bold cyan] {report.selected_candidate_id}\n"
         f"[bold cyan]Objective Mode:[/bold cyan] {report.selection_objective.value}\n"
         f"[bold cyan]Rationale:[/bold cyan] {report.selection_rationale}",
@@ -235,6 +241,79 @@ def optimize(
         report.final_optimized_prompt,
         title="[bold green]Final Compiled Prompt[/bold green]",
         border_style="green",
+    ))
+
+
+@app.command()
+def history(limit: int = typer.Option(10, "--limit", "-n", help="Number of recent runs to show")):
+    """List historical prompt compilation runs."""
+    runs = history_store.list_runs(limit=limit)
+    if not runs:
+        console.print("[yellow]No optimization runs found in history.[/yellow]")
+        return
+
+    table = Table(title="Prompt Compiler History", border_style="cyan")
+    table.add_column("Run ID", style="bold")
+    table.add_column("Timestamp")
+    table.add_column("Tokens Delta")
+    table.add_column("% Saved")
+    table.add_column("Quality")
+    table.add_column("Strategy")
+    table.add_column("Prompt Preview")
+
+    for r in runs:
+        table.add_row(
+            r.run_id,
+            r.timestamp[:19].replace("T", " "),
+            f"-{r.tokens_saved} tks",
+            f"{r.percentage_reduction:.1f}%",
+            f"{r.final_quality_score:.1f}",
+            r.selected_candidate_id,
+            r.original_prompt_preview,
+        )
+    console.print(table)
+
+
+@app.command()
+def bench(
+    backend: str = typer.Option("mock", "--backend", "-b", help="ollama | mock | openai | gemini")
+):
+    """Run standardized prompt compiler benchmarks."""
+    console.print(f"[bold cyan]Running PromptCompiler Benchmarks using '{backend}' backend...[/bold cyan]")
+    llm = resolve_backend(backend, None)
+    agent = PromptOptimizerAgent(backend=llm)
+    suite = BenchmarkSuite(agent=agent)
+
+    report = suite.run_all()
+
+    table = Table(title="PromptCompiler Benchmark Results", border_style="green")
+    table.add_column("Benchmark ID", style="bold")
+    table.add_column("Name")
+    table.add_column("Orig Tks")
+    table.add_column("Final Tks")
+    table.add_column("% Saved")
+    table.add_column("Quality")
+    table.add_column("Latency")
+
+    for res in report.results:
+        table.add_row(
+            res.benchmark_id,
+            res.name,
+            str(res.original_tokens),
+            str(res.final_tokens),
+            f"{res.percentage_reduction:.1f}%",
+            f"{res.quality_score:.1f}/10",
+            f"{res.execution_time_seconds:.2f}s",
+        )
+
+    console.print(table)
+    console.print(Panel(
+        f"[bold green]Average Token Reduction:[/bold green] {report.average_token_reduction:.1f}%\n"
+        f"[bold green]Average Quality Score:[/bold green] {report.average_quality_score:.2f}/10.0\n"
+        f"[bold green]Hard Invariant Preservation Rate:[/bold green] {report.invariant_preservation_rate:.1f}%\n"
+        f"[bold green]Total Benchmarks Evaluated:[/bold green] {report.total_benchmarks}",
+        title="Benchmark Summary",
+        border_style="green"
     ))
 
 
