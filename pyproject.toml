@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prompt-compiler"
+version = "0.1.0"
+description = "Agentic Prompt Optimization System - The Prompt Compiler"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.10.0",
+    "tiktoken>=0.14.0",
+    "httpx>=0.28.0",
+    "rich>=13.9.0",
+    "typer>=0.15.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0"
+]
+
+[project.scripts]
+prompt-opt = "prompt_optimizer.cli.main:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

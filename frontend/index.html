@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptCompiler - Agentic Prompt Optimization System</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="navbar">
+      <div class="logo-area">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>PromptCompiler</h1>
+          <p class="subtitle">Agentic Multi-Stage Prompt Optimization Engine</p>
+        </div>
+      </div>
+      <div class="nav-status">
+        <span class="status-indicator" id="backendStatus">● Checking Backend...</span>
+        <span class="version-tag">v1.0.0</span>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-layout">
+      <!-- Left Column: Input and Configuration -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>1. Raw Prompt Input</h2>
+          <span class="badge" id="inputTokenBadge">0 tokens</span>
+        </div>
+        <textarea 
+          id="rawPromptInput" 
+          placeholder="Paste your verbose, poorly structured, or ambiguous prompt here...&#10;&#10;Example:&#10;Hey please could you act as a senior python developer and please write me a python function that reads a csv file and calculates the averages. Please make sure it's valid json and please never make up data and please make sure to be very fast and handle errors. As I said before, please make sure it's valid JSON!"
+        ></textarea>
+
+        <!-- Configuration Controls -->
+        <div class="controls-grid">
+          <div class="control-group">
+            <label for="objectiveSelect">Optimization Objective</label>
+            <select id="objectiveSelect">
+              <option value="balanced">Balanced (Quality + Compression)</option>
+              <option value="maximum_quality">Maximum Quality (Zero Degradation)</option>
+              <option value="maximum_compression">Maximum Compression (Leanest Tokens)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="backendSelect">LLM Backend Engine</label>
+            <select id="backendSelect">
+              <option value="ollama">Local Ollama (Qwen2.5 / Llama)</option>
+              <option value="mock">Deterministic Mock (Ultra Fast Demo)</option>
+              <option value="openai">OpenAI / Claude / Gemini API</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button id="analyzeBtn" class="btn btn-secondary">🔍 Scan Ambiguities</button>
+          <button id="optimizeBtn" class="btn btn-primary">⚡ Compile & Optimize</button>
+        </div>
+      </section>
+
+      <!-- Right Column: Optimization Output & Diagnostics -->
+      <section class="panel results-panel">
+        <div class="panel-header">
+          <h2>2. Optimization Engine Output</h2>
+          <span class="badge badge-success" id="statusBadge" style="display:none;">Compiled</span>
+        </div>
+
+        <!-- Pipeline Stepper Tracker -->
+        <div class="pipeline-stepper" id="pipelineStepper">
+          <div class="step" id="step-analysis"><span class="step-num">1</span> Analysis</div>
+          <div class="step" id="step-planning"><span class="step-num">2</span> Planning</div>
+          <div class="step" id="step-candidates"><span class="step-num">3</span> Candidates</div>
+          <div class="step" id="step-simulation"><span class="step-num">4</span> Execution</div>
+          <div class="step" id="step-eval"><span class="step-num">5</span> Evaluation</div>
+          <div class="step" id="step-selection"><span class="step-num">6</span> Selection</div>
+        </div>
+
+        <!-- Metrics Dashboard -->
+        <div class="metrics-grid" id="metricsGrid" style="display:none;">
+          <div class="metric-card">
+            <div class="metric-label">Token Savings</div>
+            <div class="metric-value highlight" id="tokenSavingsVal">-0%</div>
+            <div class="metric-sub" id="tokenCountSub">0 &rarr; 0 tokens</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Quality Score</div>
+            <div class="metric-value" id="qualityScoreVal">0.0 / 10</div>
+            <div class="metric-sub" id="qualityDeltaSub">+0.0 baseline delta</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Hard Invariants</div>
+            <div class="metric-value success" id="invariantsVal">100%</div>
+            <div class="metric-sub" id="invariantsSub">All critical rules preserved</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Redundancies Cut</div>
+            <div class="metric-value" id="redundanciesVal">0</div>
+            <div class="metric-sub">Fillers & repetitions eliminated</div>
+          </div>
+        </div>
+
+        <!-- Optimized Prompt Display -->
+        <div class="output-container" id="outputContainer" style="display:none;">
+          <div class="output-header">
+            <h3>Compiled Output Prompt</h3>
+            <div class="output-actions">
+              <button id="copyPromptBtn" class="btn btn-sm">📋 Copy Prompt</button>
+              <button id="exportJsonBtn" class="btn btn-sm">💾 Export JSON</button>
+            </div>
+          </div>
+          <pre id="optimizedPromptText" class="code-box"></pre>
+
+          <!-- Selection Rationale Banner -->
+          <div class="rationale-box" id="rationaleBox">
+            <strong>Selection Rationale:</strong> <span id="rationaleText"></span>
+          </div>
+        </div>
+
+        <!-- Detailed Breakdown Tabs -->
+        <div class="tabs-container" id="tabsContainer" style="display:none;">
+          <div class="tabs-header">
+            <button class="tab-btn active" data-tab="tab-candidates">Candidate Matrix</button>
+            <button class="tab-btn" data-tab="tab-invariants">Preserved Invariants</button>
+            <button class="tab-btn" data-tab="tab-redundancies">Eliminated Redundancies</button>
+            <button class="tab-btn" data-tab="tab-audit">Compilation Audit</button>
+          </div>
+
+          <div class="tab-pane active" id="tab-candidates">
+            <table class="data-table" id="candidatesTable">
+              <thead>
+                <tr>
+                  <th>Candidate ID</th>
+                  <th>Strategy</th>
+                  <th>Tokens</th>
+                  <th>% Saved</th>
+                  <th>Quality</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="candidatesTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="tab-pane" id="tab-invariants">
+            <ul class="bullet-list" id="invariantsList"></ul>
+          </div>
+
+          <div class="tab-pane" id="tab-redundancies">
+            <ul class="bullet-list" id="redundanciesList"></ul>
+          </div>
+
+          <div class="tab-pane" id="tab-audit">
+            <pre id="auditJson" class="code-box json-box"></pre>
+          </div>
+        </div>
+
+        <!-- Initial Placeholder State -->
+        <div class="placeholder-state" id="placeholderState">
+          <div class="placeholder-icon">⚙️</div>
+          <h3>Prompt Compiler Ready</h3>
+          <p>Paste a prompt on the left and click <strong>Compile & Optimize</strong> to execute semantic analysis, candidate generation, test execution, and Pareto selection.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Clarification Modal -->
+    <div class="modal-backdrop" id="clarificationModal" style="display:none;">
+      <div class="modal-card">
+        <h3>Targeted Clarifications Detected</h3>
+        <p>The optimizer identified ambiguous requirements. Clarify them below or proceed with default assumptions.</p>
+        <div id="clarificationQuestionsContainer"></div>
+        <div class="modal-actions">
+          <button id="skipClarificationBtn" class="btn btn-secondary">Use Default Assumptions</button>
+          <button id="submitClarificationBtn" class="btn btn-primary">Apply & Optimize</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
