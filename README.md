@@ -4,6 +4,33 @@
 
 ---
 
+## ⚡ Quickstart (1-Command Run for Anyone)
+
+Anyone can clone and run the entire local system in 5 seconds with a single command:
+
+### 🪟 On Windows:
+```cmd
+git clone https://github.com/Munna0788/sample-project.git
+cd sample-project
+run.bat
+```
+*(Or simply double-click `run.bat`!)*
+
+### 🐧 Cross-Platform (Windows / macOS / Linux):
+```bash
+git clone https://github.com/Munna0788/sample-project.git
+cd sample-project
+python run.py
+```
+
+### 🎯 What Happens Automatically:
+1. Verifies and installs all dependencies (`requirements.txt`).
+2. Starts the background engine on `http://localhost:8000`.
+3. Activates the **Spotlight HUD box** summoned with **`Win + O`** (or `Alt + O`).
+4. Paste your raw prompt, press **`Enter`**, and instantly get the intelligent, token-optimized prompt!
+
+---
+
 ## 🎯 Architecture Overview
 
 Unlike naive LLM prompt rewrites, **PromptCompiler** operates as a true compiler and optimization agent:

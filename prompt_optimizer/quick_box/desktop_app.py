@@ -39,7 +39,7 @@ class SpotlightApp:
         self.root.geometry("820x580")
         self.root.configure(bg="#0d1117")
 
-        self._center_window(820, 580)
+        self._position_window(680, 320)
 
         # In-process backup optimizer
         self.dynamic_backend = OllamaBackend() if OllamaBackend().is_available() else MockLLMBackend()
@@ -57,12 +57,13 @@ class SpotlightApp:
         # Automatically pop up immediately upon launching
         self.root.after(100, self.show_window)
 
-    def _center_window(self, w: int, h: int):
+    def _position_window(self, w: int = 680, h: int = 320):
         self.root.update_idletasks()
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
         x = (screen_w // 2) - (w // 2)
-        y = (screen_h // 2) - (h // 2)
+        # Position floating pleasantly above the bottom chat input bar
+        y = max(40, screen_h - h - 150)
         self.root.geometry(f"{w}x{h}+{x}+{y}")
 
     def _build_ui(self):
@@ -112,7 +113,7 @@ class SpotlightApp:
         # Input text area (Enter directly generates!)
         self.input_text = tk.Text(
             header_frame,
-            height=4,
+            height=3,
             bg="#0d1117",
             fg="#f0f6fc",
             insertbackground="#58a6ff",
@@ -319,7 +320,7 @@ class SpotlightApp:
         self.root.state("normal")
         self.root.lift()
         self.root.attributes("-topmost", True)
-        self._center_window(820, 580)
+        self._position_window(680, 320)
         self.is_visible = True
 
         # Win32 force foreground to bypass Windows focus lock
