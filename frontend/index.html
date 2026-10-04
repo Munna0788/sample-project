@@ -5,22 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PromptCompiler - Agentic Prompt Optimization System</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app-container">
-    <!-- Header -->
+    <!-- Navbar -->
     <header class="navbar">
-      <div class="logo-area">
-        <div class="logo-badge">⚡</div>
-        <div>
-          <h1>PromptCompiler</h1>
-          <p class="subtitle">Agentic Multi-Stage Prompt Optimization Engine</p>
+      <div class="navbar-left">
+        <div class="logo-area">
+          <div class="logo-badge">⚡</div>
+          <div>
+            <div class="logo-title-row">
+              <h1>PromptCompiler</h1>
+              <span class="badge badge-accent">Agentic AI</span>
+            </div>
+            <p class="subtitle">Multi-Stage Prompt Compilation, Evaluation & Pareto Optimization</p>
+          </div>
         </div>
       </div>
-      <div class="nav-status">
-        <span class="status-indicator" id="backendStatus">● Checking Backend...</span>
-        <span class="version-tag">v1.0.0</span>
+
+      <div class="navbar-right">
+        <!-- Backend Connection Pill -->
+        <div class="backend-status-pill" id="backendStatusPill" title="Click to configure backend API URL">
+          <span class="status-dot" id="backendStatusDot"></span>
+          <span class="status-text" id="backendStatusText">Checking Backend...</span>
+          <span class="settings-gear" id="backendSettingsBtn">⚙️</span>
+        </div>
+        <span class="version-tag">Laptop 2 &bull; feature-frontend</span>
       </div>
     </header>
 
@@ -29,142 +42,414 @@
       <!-- Left Column: Input and Configuration -->
       <section class="panel input-panel">
         <div class="panel-header">
-          <h2>1. Raw Prompt Input</h2>
-          <span class="badge" id="inputTokenBadge">0 tokens</span>
+          <div class="panel-title-group">
+            <span class="panel-step-badge">1</span>
+            <h2>Raw Prompt Ingestion</h2>
+          </div>
+          <div class="token-badge-group">
+            <span class="badge badge-tokens" id="inputTokenBadge">0 tokens</span>
+            <span class="badge badge-words" id="inputWordBadge">0 words</span>
+          </div>
         </div>
-        <textarea 
-          id="rawPromptInput" 
-          placeholder="Paste your verbose, poorly structured, or ambiguous prompt here...&#10;&#10;Example:&#10;Hey please could you act as a senior python developer and please write me a python function that reads a csv file and calculates the averages. Please make sure it's valid json and please never make up data and please make sure to be very fast and handle errors. As I said before, please make sure it's valid JSON!"
-        ></textarea>
+
+        <!-- Quick Demo Presets Bar -->
+        <div class="presets-bar">
+          <span class="presets-label">💡 Presets:</span>
+          <div class="preset-pills">
+            <button type="button" class="preset-pill" data-preset="csv">📊 CSV Analyst</button>
+            <button type="button" class="preset-pill" data-preset="support">💬 Support Bot</button>
+            <button type="button" class="preset-pill" data-preset="extractor">⚡ JSON Extractor</button>
+            <button type="button" class="preset-pill" data-preset="refactor">🐍 Code Reviewer</button>
+          </div>
+        </div>
+
+        <!-- Input Textarea with Actions -->
+        <div class="textarea-wrapper">
+          <textarea 
+            id="rawPromptInput" 
+            placeholder="Paste your verbose, rambling, or poorly structured prompt here...
+
+Try typing or select one of the demo presets above.
+Press Ctrl+Enter (Cmd+Enter) to instantly compile."
+            spellcheck="false"
+          ></textarea>
+          <div class="textarea-actions">
+            <button type="button" id="clearPromptBtn" class="icon-btn" title="Clear input">🗑️ Clear</button>
+            <button type="button" id="pastePromptBtn" class="icon-btn" title="Paste from clipboard">📋 Paste</button>
+          </div>
+        </div>
 
         <!-- Configuration Controls -->
         <div class="controls-grid">
           <div class="control-group">
-            <label for="objectiveSelect">Optimization Objective</label>
+            <label for="objectiveSelect">
+              Optimization Objective
+              <span class="tooltip-icon" title="Strategy for trade-off between qualitative fidelity and token pruning">ℹ️</span>
+            </label>
             <select id="objectiveSelect">
-              <option value="balanced">Balanced (Quality + Compression)</option>
-              <option value="maximum_quality">Maximum Quality (Zero Degradation)</option>
-              <option value="maximum_compression">Maximum Compression (Leanest Tokens)</option>
+              <option value="balanced" selected>⚖️ Balanced (Pareto 65% Quality / 35% Lean)</option>
+              <option value="maximum_quality">🎯 Maximum Quality (Strict Zero Degradation)</option>
+              <option value="maximum_compression">🗜️ Maximum Compression (Aggressive Pruning)</option>
             </select>
           </div>
 
           <div class="control-group">
-            <label for="backendSelect">LLM Backend Engine</label>
+            <label for="backendSelect">
+              LLM Backend Engine
+              <span class="tooltip-icon" title="Target model executing the multi-stage compiler pipeline">ℹ️</span>
+            </label>
             <select id="backendSelect">
-              <option value="ollama">Local Ollama (Qwen2.5 / Llama)</option>
-              <option value="mock">Deterministic Mock (Ultra Fast Demo)</option>
-              <option value="openai">OpenAI / Claude / Gemini API</option>
+              <option value="mock">⚡ Deterministic Mock (Fast Simulation Demo)</option>
+              <option value="ollama">🦙 Local Ollama (Qwen2.5 / Llama)</option>
+              <option value="openai">🌐 OpenAI / Gemini / Claude API</option>
             </select>
           </div>
         </div>
 
+        <!-- Advanced Collapsible Backend Settings -->
+        <details class="advanced-settings-details" id="advancedSettings">
+          <summary>⚙️ Advanced Backend & Endpoint Configuration</summary>
+          <div class="advanced-settings-body">
+            <div class="control-group">
+              <label for="backendUrlInput">Backend API Host URL</label>
+              <div class="input-with-action">
+                <input type="text" id="backendUrlInput" placeholder="http://localhost:8000" value="http://localhost:8000">
+                <button type="button" id="saveBackendUrlBtn" class="btn btn-sm">Save & Ping</button>
+              </div>
+              <small class="help-text">Set your partner's laptop IP if backend is running remotely (e.g. <code>http://192.168.1.50:8000</code>).</small>
+            </div>
+          </div>
+        </details>
+
+        <!-- Primary Action Bar -->
         <div class="action-bar">
-          <button id="analyzeBtn" class="btn btn-secondary">🔍 Scan Ambiguities</button>
-          <button id="optimizeBtn" class="btn btn-primary">⚡ Compile & Optimize</button>
+          <button id="analyzeBtn" class="btn btn-secondary">
+            <span class="btn-icon">🔍</span> Scan Ambiguities
+          </button>
+          <button id="optimizeBtn" class="btn btn-primary">
+            <span class="btn-icon">⚡</span> Compile & Optimize
+            <span class="btn-kbd">Ctrl+↵</span>
+          </button>
         </div>
       </section>
 
       <!-- Right Column: Optimization Output & Diagnostics -->
       <section class="panel results-panel">
         <div class="panel-header">
-          <h2>2. Optimization Engine Output</h2>
-          <span class="badge badge-success" id="statusBadge" style="display:none;">Compiled</span>
+          <div class="panel-title-group">
+            <span class="panel-step-badge">2</span>
+            <h2>Optimization Engine Output</h2>
+          </div>
+          <div class="status-badge-container">
+            <span class="badge badge-success" id="statusBadge" style="display:none;">✓ Compiled</span>
+            <span class="badge badge-winner" id="winnerBadge" style="display:none;">🏆 Selected Candidate</span>
+          </div>
         </div>
 
         <!-- Pipeline Stepper Tracker -->
         <div class="pipeline-stepper" id="pipelineStepper">
-          <div class="step" id="step-analysis"><span class="step-num">1</span> Analysis</div>
-          <div class="step" id="step-planning"><span class="step-num">2</span> Planning</div>
-          <div class="step" id="step-candidates"><span class="step-num">3</span> Candidates</div>
-          <div class="step" id="step-simulation"><span class="step-num">4</span> Execution</div>
-          <div class="step" id="step-eval"><span class="step-num">5</span> Evaluation</div>
-          <div class="step" id="step-selection"><span class="step-num">6</span> Selection</div>
+          <div class="step" id="step-analysis" title="Decomposes intent, invariants, constraints">
+            <span class="step-num">1</span>
+            <span class="step-label">Analysis</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" id="step-planning" title="Architects compression & structure plan">
+            <span class="step-num">2</span>
+            <span class="step-label">Planning</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" id="step-candidates" title="Synthesizes concise, structured, operational forms">
+            <span class="step-num">3</span>
+            <span class="step-label">Candidates</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" id="step-simulation" title="Executes test cases against prompts">
+            <span class="step-num">4</span>
+            <span class="step-label">Simulation</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" id="step-eval" title="Scores multi-metrics and guards invariants">
+            <span class="step-num">5</span>
+            <span class="step-label">Evaluation</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" id="step-selection" title="Selects Pareto optimal candidate">
+            <span class="step-num">6</span>
+            <span class="step-label">Selection</span>
+          </div>
         </div>
 
         <!-- Metrics Dashboard -->
         <div class="metrics-grid" id="metricsGrid" style="display:none;">
-          <div class="metric-card">
-            <div class="metric-label">Token Savings</div>
+          <div class="metric-card metric-tokens">
+            <div class="metric-header">
+              <span class="metric-label">Token Savings</span>
+              <span class="metric-icon">📉</span>
+            </div>
             <div class="metric-value highlight" id="tokenSavingsVal">-0%</div>
             <div class="metric-sub" id="tokenCountSub">0 &rarr; 0 tokens</div>
+            <div class="mini-progress-bar">
+              <div class="mini-progress-fill" id="tokenSavingsBar" style="width: 0%;"></div>
+            </div>
           </div>
-          <div class="metric-card">
-            <div class="metric-label">Quality Score</div>
+
+          <div class="metric-card metric-quality">
+            <div class="metric-header">
+              <span class="metric-label">Quality Score</span>
+              <span class="metric-icon">⭐</span>
+            </div>
             <div class="metric-value" id="qualityScoreVal">0.0 / 10</div>
             <div class="metric-sub" id="qualityDeltaSub">+0.0 baseline delta</div>
+            <div class="mini-progress-bar">
+              <div class="mini-progress-fill quality-fill" id="qualityScoreBar" style="width: 0%;"></div>
+            </div>
           </div>
-          <div class="metric-card">
-            <div class="metric-label">Hard Invariants</div>
+
+          <div class="metric-card metric-invariants">
+            <div class="metric-header">
+              <span class="metric-label">Hard Invariants</span>
+              <span class="metric-icon">🔒</span>
+            </div>
             <div class="metric-value success" id="invariantsVal">100%</div>
             <div class="metric-sub" id="invariantsSub">All critical rules preserved</div>
+            <span class="metric-tag">Zero Violation Guardrail</span>
           </div>
-          <div class="metric-card">
-            <div class="metric-label">Redundancies Cut</div>
-            <div class="metric-value" id="redundanciesVal">0</div>
+
+          <div class="metric-card metric-redundancies">
+            <div class="metric-header">
+              <span class="metric-label">Redundancies Cut</span>
+              <span class="metric-icon">✂️</span>
+            </div>
+            <div class="metric-value warning" id="redundanciesVal">0</div>
             <div class="metric-sub">Fillers & repetitions eliminated</div>
+            <span class="metric-tag">De-bloated</span>
           </div>
         </div>
 
-        <!-- Optimized Prompt Display -->
-        <div class="output-container" id="outputContainer" style="display:none;">
-          <div class="output-header">
-            <h3>Compiled Output Prompt</h3>
-            <div class="output-actions">
-              <button id="copyPromptBtn" class="btn btn-sm">📋 Copy Prompt</button>
-              <button id="exportJsonBtn" class="btn btn-sm">💾 Export JSON</button>
+        <!-- ROI & Financial Cost Calculator Widget -->
+        <div class="roi-calculator-card" id="roiCard" style="display:none;">
+          <div class="roi-header">
+            <div class="roi-title">
+              <span>💰</span> <strong>Projected Financial Savings (ROI)</strong>
+            </div>
+            <div class="roi-controls">
+              <label for="roiVolumeSlider">Monthly Volume:</label>
+              <select id="roiVolumeSelect">
+                <option value="100000">100K API Calls / Mo</option>
+                <option value="1000000" selected>1M API Calls / Mo</option>
+                <option value="5000000">5M API Calls / Mo</option>
+                <option value="20000000">20M API Calls / Mo</option>
+              </select>
             </div>
           </div>
-          <pre id="optimizedPromptText" class="code-box"></pre>
+          <div class="roi-grid">
+            <div class="roi-item">
+              <span class="roi-model">GPT-4o ($2.50/M in)</span>
+              <span class="roi-savings" id="roiGpt4o">$0.00 / yr</span>
+            </div>
+            <div class="roi-item">
+              <span class="roi-model">Claude 3.5 Sonnet ($3.00/M in)</span>
+              <span class="roi-savings" id="roiClaude">$0.00 / yr</span>
+            </div>
+            <div class="roi-item">
+              <span class="roi-model">Gemini 1.5 Pro ($1.25/M in)</span>
+              <span class="roi-savings" id="roiGemini">$0.00 / yr</span>
+            </div>
+            <div class="roi-item">
+              <span class="roi-model">Annual Token Delta</span>
+              <span class="roi-tokens" id="roiTokens">0 Tokens Saved / Yr</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Display & Diff Container -->
+        <div class="output-container" id="outputContainer" style="display:none;">
+          <div class="output-toolbar">
+            <div class="view-mode-tabs">
+              <button type="button" class="view-tab-btn active" data-view="side-by-side">↔️ Visual Diff</button>
+              <button type="button" class="view-tab-btn" data-view="highlighted">✨ Highlighted Output</button>
+              <button type="button" class="view-tab-btn" data-view="unified">↕️ Unified Diff</button>
+              <button type="button" class="view-tab-btn" data-view="raw">📄 Raw Text</button>
+            </div>
+            <div class="output-actions">
+              <button id="copyPromptBtn" class="btn btn-sm" title="Copy optimized prompt">📋 Copy Prompt</button>
+              <button id="exportJsonBtn" class="btn btn-sm" title="Export full report as JSON">💾 Export JSON</button>
+            </div>
+          </div>
+
+          <!-- View 1: Side by Side Visual Diff -->
+          <div class="diff-view-pane active" id="viewSideBySide">
+            <div class="diff-grid">
+              <div class="diff-column diff-original">
+                <div class="diff-column-header">
+                  <span class="diff-badge del-badge">Original (Baseline)</span>
+                  <span class="diff-count" id="originalDiffTokenCount">0 tokens</span>
+                </div>
+                <div class="diff-content" id="diffOriginalText"></div>
+              </div>
+              <div class="diff-column diff-optimized">
+                <div class="diff-column-header">
+                  <span class="diff-badge add-badge">Compiled & Optimized</span>
+                  <span class="diff-count" id="optimizedDiffTokenCount">0 tokens</span>
+                </div>
+                <div class="diff-content" id="diffOptimizedText"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- View 2: Syntax Highlighted Prompt Output -->
+          <div class="diff-view-pane" id="viewHighlighted">
+            <div class="highlighted-output-box" id="highlightedPromptText"></div>
+          </div>
+
+          <!-- View 3: Unified Diff Line View -->
+          <div class="diff-view-pane" id="viewUnified">
+            <div class="unified-diff-box" id="unifiedDiffText"></div>
+          </div>
+
+          <!-- View 4: Raw Text View -->
+          <div class="diff-view-pane" id="viewRaw">
+            <pre id="optimizedPromptText" class="code-box"></pre>
+          </div>
 
           <!-- Selection Rationale Banner -->
           <div class="rationale-box" id="rationaleBox">
-            <strong>Selection Rationale:</strong> <span id="rationaleText"></span>
+            <div class="rationale-header">
+              <span class="rationale-icon">🧠</span>
+              <strong>Pareto Selection Rationale</strong>
+              <span class="rationale-strategy-tag" id="rationaleStrategyTag">Structured</span>
+            </div>
+            <div class="rationale-text" id="rationaleText"></div>
           </div>
         </div>
 
         <!-- Detailed Breakdown Tabs -->
         <div class="tabs-container" id="tabsContainer" style="display:none;">
           <div class="tabs-header">
-            <button class="tab-btn active" data-tab="tab-candidates">Candidate Matrix</button>
-            <button class="tab-btn" data-tab="tab-invariants">Preserved Invariants</button>
-            <button class="tab-btn" data-tab="tab-redundancies">Eliminated Redundancies</button>
-            <button class="tab-btn" data-tab="tab-audit">Compilation Audit</button>
+            <button class="tab-btn active" data-tab="tab-candidates">
+              <span class="tab-icon">📊</span> Candidate Matrix (<span id="candidateCountTag">3</span>)
+            </button>
+            <button class="tab-btn" data-tab="tab-invariants">
+              <span class="tab-icon">🔒</span> Preserved Invariants (<span id="invariantsCountTag">0</span>)
+            </button>
+            <button class="tab-btn" data-tab="tab-redundancies">
+              <span class="tab-icon">✂️</span> Redundancies Cut (<span id="redundanciesCountTag">0</span>)
+            </button>
+            <button class="tab-btn" data-tab="tab-audit">
+              <span class="tab-icon">🔍</span> Compilation Audit JSON
+            </button>
           </div>
 
+          <!-- Tab 1: Candidate Comparison Matrix -->
           <div class="tab-pane active" id="tab-candidates">
-            <table class="data-table" id="candidatesTable">
-              <thead>
-                <tr>
-                  <th>Candidate ID</th>
-                  <th>Strategy</th>
-                  <th>Tokens</th>
-                  <th>% Saved</th>
-                  <th>Quality</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="candidatesTableBody"></tbody>
-            </table>
+            <div class="candidates-table-wrapper">
+              <table class="data-table" id="candidatesTable">
+                <thead>
+                  <tr>
+                    <th>Candidate</th>
+                    <th>Architecture / Strategy</th>
+                    <th>Tokens</th>
+                    <th>Reduction</th>
+                    <th>Quality</th>
+                    <th>Guardrails</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="candidatesTableBody"></tbody>
+              </table>
+            </div>
+
+            <!-- Candidate Deep Dive Drawer / Details Container -->
+            <div class="candidate-detail-card" id="candidateDetailCard" style="display:none;">
+              <div class="candidate-detail-header">
+                <h4 id="detailCandidateTitle">Candidate Details</h4>
+                <button type="button" class="btn-close-detail" id="closeCandidateDetailBtn">&times;</button>
+              </div>
+              <div class="candidate-detail-body">
+                <div class="scores-radar-grid">
+                  <div class="score-bar-group">
+                    <div class="score-bar-label">
+                      <span>Task Correctness</span>
+                      <strong id="barTaskCorrectnessVal">0.0/10</strong>
+                    </div>
+                    <div class="score-progress-bar"><div class="score-fill" id="barTaskCorrectness"></div></div>
+                  </div>
+                  <div class="score-bar-group">
+                    <div class="score-bar-label">
+                      <span>Requirement Preservation</span>
+                      <strong id="barReqPreservationVal">0.0/10</strong>
+                    </div>
+                    <div class="score-progress-bar"><div class="score-fill" id="barReqPreservation"></div></div>
+                  </div>
+                  <div class="score-bar-group">
+                    <div class="score-bar-label">
+                      <span>Completeness</span>
+                      <strong id="barCompletenessVal">0.0/10</strong>
+                    </div>
+                    <div class="score-progress-bar"><div class="score-fill" id="barCompleteness"></div></div>
+                  </div>
+                  <div class="score-bar-group">
+                    <div class="score-bar-label">
+                      <span>Clarity & Structure</span>
+                      <strong id="barClarityVal">0.0/10</strong>
+                    </div>
+                    <div class="score-progress-bar"><div class="score-fill" id="barClarity"></div></div>
+                  </div>
+                  <div class="score-bar-group">
+                    <div class="score-bar-label">
+                      <span>Schema / Format Adherence</span>
+                      <strong id="barFormatVal">0.0/10</strong>
+                    </div>
+                    <div class="score-progress-bar"><div class="score-fill" id="barFormat"></div></div>
+                  </div>
+                </div>
+
+                <div class="detail-feedback-box" id="detailFeedbackBox"></div>
+
+                <div class="detail-test-executions">
+                  <h5>🧪 Test Case Simulation Results</h5>
+                  <div id="testExecutionsContainer"></div>
+                </div>
+              </div>
+            </div>
           </div>
 
+          <!-- Tab 2: Preserved Invariants -->
           <div class="tab-pane" id="tab-invariants">
+            <p class="tab-description">All hard functional and schema constraints identified during semantic decomposition are strictly guaranteed across the optimization lifecycle.</p>
             <ul class="bullet-list" id="invariantsList"></ul>
           </div>
 
+          <!-- Tab 3: Eliminated Redundancies -->
           <div class="tab-pane" id="tab-redundancies">
+            <p class="tab-description">Redundant conversational fillers, circular explanations, and ungrounded instructions safely pruned without altering intent.</p>
             <ul class="bullet-list" id="redundanciesList"></ul>
           </div>
 
+          <!-- Tab 4: Raw JSON Audit -->
           <div class="tab-pane" id="tab-audit">
+            <div class="audit-toolbar">
+              <span class="audit-title">Machine-Readable FinalOptimizationReport Schema</span>
+              <button id="copyAuditJsonBtn" class="btn btn-sm">📋 Copy JSON</button>
+            </div>
             <pre id="auditJson" class="code-box json-box"></pre>
           </div>
         </div>
 
         <!-- Initial Placeholder State -->
         <div class="placeholder-state" id="placeholderState">
-          <div class="placeholder-icon">⚙️</div>
+          <div class="placeholder-graphic">
+            <div class="graphic-circle outer-circle"></div>
+            <div class="graphic-circle inner-circle"></div>
+            <div class="graphic-icon">⚡</div>
+          </div>
           <h3>Prompt Compiler Ready</h3>
-          <p>Paste a prompt on the left and click <strong>Compile & Optimize</strong> to execute semantic analysis, candidate generation, test execution, and Pareto selection.</p>
+          <p>Paste a prompt on the left or click one of the <strong>Presets</strong>, then run <strong>Compile & Optimize</strong> to execute semantic decomposition, candidate synthesis, test case simulation, and Pareto selection.</p>
+          <div class="placeholder-tags">
+            <span class="badge">tiktoken Deterministic</span>
+            <span class="badge">100% Invariant Safety</span>
+            <span class="badge">Multi-Candidate Matrix</span>
+          </div>
         </div>
       </section>
     </main>
@@ -172,15 +457,26 @@
     <!-- Clarification Modal -->
     <div class="modal-backdrop" id="clarificationModal" style="display:none;">
       <div class="modal-card">
-        <h3>Targeted Clarifications Detected</h3>
-        <p>The optimizer identified ambiguous requirements. Clarify them below or proceed with default assumptions.</p>
-        <div id="clarificationQuestionsContainer"></div>
+        <div class="modal-header">
+          <div class="modal-title-row">
+            <span class="modal-icon">🔍</span>
+            <h3>Targeted Clarifications Detected</h3>
+          </div>
+          <button type="button" class="btn-close-modal" id="closeClarificationModalBtn">&times;</button>
+        </div>
+        <p class="modal-subtitle">The Semantic Analysis engine identified underspecified parameters or ambiguities. Provide clarification below or proceed with default assumptions.</p>
+        
+        <div id="clarificationQuestionsContainer" class="clarification-list"></div>
+        
         <div class="modal-actions">
           <button id="skipClarificationBtn" class="btn btn-secondary">Use Default Assumptions</button>
-          <button id="submitClarificationBtn" class="btn btn-primary">Apply & Optimize</button>
+          <button id="submitClarificationBtn" class="btn btn-primary">Apply & Compile</button>
         </div>
       </div>
     </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
   </div>
 
   <script src="app.js"></script>
