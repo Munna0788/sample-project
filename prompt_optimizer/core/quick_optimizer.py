@@ -40,13 +40,16 @@ Return STRICT JSON complying with this structure:
 """
 
 
+from prompt_optimizer.core.cache import PromptCache
+
 class QuickOptimizer:
     """Orchestrates quick dual-result prompt optimization with instant ambiguity querying."""
 
-    def __init__(self, backend: BaseLLMBackend, tokenizer: Optional[TokenizerEngine] = None):
+    def __init__(self, backend: BaseLLMBackend, tokenizer: Optional[TokenizerEngine] = None, cache: Optional[PromptCache] = None):
         self.backend = backend
         self.tokenizer = tokenizer or TokenizerEngine()
         self.analyzer = PromptAnalyzer(backend)
+        self.cache = cache or PromptCache()
 
     def optimize_quick(
         self,
@@ -56,6 +59,12 @@ class QuickOptimizer:
     ) -> QuickOptimizeResponse:
         """Run quick optimization. Halts on ambiguities if not clarified, otherwise returns dual results."""
         raw_text = raw_prompt.strip()
+
+        # Check Cache
+        cached_res = self.cache.get(raw_text, self.backend.get_model_name(), clarification_answers)
+        if cached_res and not force_generate:
+            return cached_res
+
         orig_metrics = self.tokenizer.measure(raw_text)
         orig_tokens = orig_metrics.token_count
 
@@ -139,7 +148,7 @@ Synthesize both the 'concise' and 'high_precision' variations in strict JSON.
             preserved_invariants=[r.id for r in analysis.hard_requirements],
         )
 
-        return QuickOptimizeResponse(
+        final_resp = QuickOptimizeResponse(
             status="ready",
             original_tokens=orig_tokens,
             ambiguities=analysis.ambiguities,
@@ -147,6 +156,8 @@ Synthesize both the 'concise' and 'high_precision' variations in strict JSON.
             concise=concise_result,
             high_precision=hp_result,
         )
+        self.cache.set(raw_text, self.backend.get_model_name(), final_resp, clarification_answers)
+        return final_resp
 
     def _clean_and_parse(self, raw_str: str, original_prompt: str) -> Dict[str, Any]:
         from prompt_optimizer.utils.json_repair import extract_json

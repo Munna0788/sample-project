@@ -55,7 +55,7 @@ Return STRICT JSON complying with this structure:
   ],
   "missing_critical_info": ["string"],
   "clarification_questions": [
-    {"id": "CLAR-01", "question": "string", "reason": "string", "default_assumption": "string"}
+    {"id": "CLAR-01", "question": "string", "reason": "string", "default_assumption": "string", "suggested_options": ["option 1", "option 2"]}
   ]
 }
 """
@@ -86,17 +86,13 @@ class PromptAnalyzer:
         return AnalysisResult.model_validate(data)
 
     def _clean_and_parse_json(self, raw_str: str) -> Dict[str, Any]:
-        """Strip markdown ticks and parse JSON safely."""
-        cleaned = raw_str.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse analyzer JSON: {cleaned}")
-            # Safe heuristic fallback
-            return {
+        """Strip markdown ticks and parse JSON safely using resilient repair."""
+        from prompt_optimizer.utils.json_repair import extract_json
+        parsed = extract_json(raw_str)
+        if parsed and isinstance(parsed, dict) and "task_intent" in parsed:
+            return parsed
+        # Safe heuristic fallback
+        return {
                 "task_intent": "Execute provided prompt instructions",
                 "context": "",
                 "constraints": [],

@@ -152,21 +152,17 @@ Grade output adherence in strict JSON.
         )
 
     def _clean_and_parse_evaluation(self, raw_str: str, all_hard_req_ids: List[str]) -> Dict[str, Any]:
-        cleaned = raw_str.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse evaluator JSON: {cleaned}")
-            return {
-                "task_correctness": 8.0,
-                "requirement_preservation": 8.5,
-                "completeness": 8.0,
-                "clarity": 8.5,
-                "output_format_adherence": 9.0,
-                "satisfied_hard_requirements": all_hard_req_ids,
-                "violated_hard_requirements": [],
-                "evaluation_notes": "Parsed via fallback scoring."
-            }
+        from prompt_optimizer.utils.json_repair import extract_json
+        parsed = extract_json(raw_str)
+        if parsed and isinstance(parsed, dict) and "task_correctness" in parsed:
+            return parsed
+        return {
+            "task_correctness": 8.0,
+            "requirement_preservation": 8.5,
+            "completeness": 8.0,
+            "clarity": 8.5,
+            "output_format_adherence": 9.0,
+            "satisfied_hard_requirements": all_hard_req_ids,
+            "violated_hard_requirements": [],
+            "evaluation_notes": "Parsed via fallback scoring."
+        }

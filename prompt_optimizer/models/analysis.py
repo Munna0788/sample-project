@@ -49,6 +49,7 @@ class ClarificationQuestion(BaseModel):
     question: str = Field(description="The question to clarify intent")
     reason: str = Field(description="Why this information is critical")
     default_assumption: str = Field(description="Assumption used if user does not answer")
+    suggested_options: List[str] = Field(default_factory=list, description="Quick selectable options for the user")
     user_answer: Optional[str] = Field(default=None, description="User provided answer, if any")
 
 

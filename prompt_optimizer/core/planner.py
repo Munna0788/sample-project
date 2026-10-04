@@ -79,20 +79,16 @@ Produce the Optimization Plan in strict JSON.
         return OptimizationPlan.model_validate(data)
 
     def _clean_and_parse_json(self, raw_str: str, hard_reqs: list) -> Dict[str, Any]:
-        cleaned = raw_str.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse planner JSON: {cleaned}")
-            return {
-                "compression_targets": ["Verbose phrasing"],
-                "removal_targets": ["Conversational filler"],
-                "merge_targets": ["Scattered requirements"],
-                "reorganization_strategy": "Structural Markdown sections",
-                "hard_requirement_invariants": hard_reqs,
-                "planned_actions": [],
-                "plan_rationale": "Standard compression while retaining invariants."
-            }
+        from prompt_optimizer.utils.json_repair import extract_json
+        parsed = extract_json(raw_str)
+        if parsed and isinstance(parsed, dict) and "reorganization_strategy" in parsed:
+            return parsed
+        return {
+            "compression_targets": ["Verbose phrasing"],
+            "removal_targets": ["Conversational filler"],
+            "merge_targets": ["Scattered requirements"],
+            "reorganization_strategy": "Structural Markdown sections",
+            "hard_requirement_invariants": hard_reqs,
+            "planned_actions": [],
+            "plan_rationale": "Standard compression while retaining invariants."
+        }

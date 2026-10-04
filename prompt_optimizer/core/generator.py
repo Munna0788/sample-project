@@ -137,22 +137,17 @@ Generate the 3 candidates in strict JSON.
         return candidates
 
     def _clean_and_parse_json(self, raw_str: str, raw_prompt: str, hard_reqs: list) -> List[Dict[str, Any]]:
-        cleaned = raw_str.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-        try:
-            data = json.loads(cleaned)
-            return data.get("candidates", [])
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse generator JSON: {cleaned}")
-            return [
-                {
-                    "id": "cand_concise",
-                    "strategy": "concise",
-                    "prompt_text": raw_prompt.strip(),
-                    "rationale": "Fallback concise prompt",
-                    "preserved_hard_requirements": hard_reqs,
-                    "changes_summary": ["Fallback pass"]
-                }
-            ]
+        from prompt_optimizer.utils.json_repair import extract_json
+        parsed = extract_json(raw_str)
+        if parsed and isinstance(parsed, dict) and "candidates" in parsed:
+            return parsed.get("candidates", [])
+        return [
+            {
+                "id": "cand_concise",
+                "strategy": "concise",
+                "prompt_text": raw_prompt.strip(),
+                "rationale": "Fallback concise prompt",
+                "preserved_hard_requirements": hard_reqs,
+                "changes_summary": ["Fallback pass"]
+            }
+        ]

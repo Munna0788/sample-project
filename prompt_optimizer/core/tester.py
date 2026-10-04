@@ -107,20 +107,15 @@ Generate 2 distinct test scenarios in strict JSON.
             )
 
     def _clean_and_parse_test_cases(self, raw_str: str) -> List[Dict[str, Any]]:
-        cleaned = raw_str.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-        try:
-            data = json.loads(cleaned)
-            return data.get("test_cases", [])
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse test case JSON: {cleaned}")
-            return [
-                {
-                    "id": "TC-01",
-                    "name": "Default Test Scenario",
-                    "input_scenario": "Sample data input",
-                    "expected_behavior": "Executes core task correctly"
-                }
-            ]
+        from prompt_optimizer.utils.json_repair import extract_json
+        parsed = extract_json(raw_str)
+        if parsed and isinstance(parsed, dict) and "test_cases" in parsed:
+            return parsed.get("test_cases", [])
+        return [
+            {
+                "id": "TC-01",
+                "name": "Default Test Scenario",
+                "input_scenario": "Sample data input",
+                "expected_behavior": "Executes core task correctly"
+            }
+        ]
