@@ -110,13 +110,18 @@ def _analyze_text(raw_text: str) -> Dict[str, Any]:
     if not compressed_task.endswith("."):
         compressed_task += "."
 
-    # Ambiguity detection
+    # Ambiguity detection: Only trigger when prompt has vague markers or lacks essential specs
     words = raw_text.split()
-    is_ambiguous = (
-        len(words) < 12
-        or any(w in lower for w in ["something", "cool", "stuff", "short and cool", "vague", "some code"])
-        or ("scrape" in lower and "url" not in lower)
-    )
+    vague_markers = [
+        "something", "cool", "stuff", "short and cool", "vague", "some code",
+        "make me something", "do something", "create something", "write something",
+        "some app", "some script", "whatever you want"
+    ]
+    has_vague_words = any(w in lower for w in vague_markers)
+    missing_scrape_target = ("scrape" in lower or "crawler" in lower) and not any(k in lower for k in ["http", "url", "site", "web", "html", "article", "page", "domain", "data", "records", "csv"])
+    too_short_and_generic = len(words) < 5 and not any(k in lower for k in ["python", "json", "csv", "sql", "email", "bug", "fix", "function", "script", "review", "test"])
+
+    is_ambiguous = has_vague_words or missing_scrape_target or too_short_and_generic
     ambiguities = []
     clarification_questions = []
 
