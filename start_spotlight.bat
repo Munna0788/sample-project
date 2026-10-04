@@ -10,7 +10,7 @@ if exist "C:\Users\VICTUS\AppData\Local\Programs\Python\Python313\python.exe" (
 )
 
 REM 1. Start FastAPI Backend in Background if not active
-netstat -ano | findstr :8000 >nul
+netstat -ano | findstr /R /C:":8000 .*LISTENING" >nul
 if %errorlevel% neq 0 (
     echo [1/2] Launching Background API Server...
     start /b %PYTHON_CMD% -m uvicorn prompt_optimizer.web.app:app --host 0.0.0.0 --port 8000
