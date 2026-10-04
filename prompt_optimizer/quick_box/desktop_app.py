@@ -2,12 +2,12 @@
 Features:
 - Global system-wide hotkeys Win+O and Alt+O
 - Automatically pops up to foreground when summoned
-- Displays exclusively the High Precision optimized prompt (dynamically tailored to input)
+- Press Enter directly to optimize prompt (no Ctrl+Enter needed)
+- Directly outputs High Precision prompt with Token Optimization (no JSON/ambiguity popups)
 - Dual Engine support: ⚡ Fast Dynamic Compiler (<10ms) & 🧠 Local Ollama 7B
-- Ambiguity detection with 1-click option pills
 - Quick demo presets (CSV Analyst, Support Bot, JSON Extractor, Code Reviewer)
 - Self-contained in-process fallback if HTTP server is offline
-- 1-Key instant copy (Enter / Ctrl+C, Esc to hide)
+- 1-Key instant copy (Enter / Ctrl+C outside input, Esc to hide)
 """
 
 import json
@@ -56,7 +56,7 @@ PRESETS = {
 
 
 class SpotlightApp:
-    """Floating Spotlight-style Box that pops up on Win+O and displays High Precision prompts."""
+    """Floating Spotlight-style Box that pops up on Win+O and directly optimizes prompts with token metrics."""
 
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -75,8 +75,6 @@ class SpotlightApp:
         self.fallback_optimizer = QuickOptimizer(backend=self.dynamic_mock_backend)
 
         self.current_response: Optional[Dict[str, Any]] = None
-        self.clarification_answers: Dict[str, str] = {}
-        self.active_question_id: Optional[str] = None
         self.is_visible = True
 
         self._build_ui()
@@ -133,7 +131,7 @@ class SpotlightApp:
 
         esc_hint = tk.Label(
             top_row,
-            text="Esc: Hide  |  Ctrl+Enter: Run  |  Enter: Copy Prompt",
+            text="Enter: Optimize  |  Esc: Hide  |  Click/Enter: Copy Prompt",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22"
@@ -206,7 +204,7 @@ class SpotlightApp:
         )
         self.ollama_btn.pack(side="left", padx=2)
 
-        # Input text area
+        # Input text area (Enter directly optimizes!)
         self.input_text = tk.Text(
             header_frame,
             height=3,
@@ -230,7 +228,7 @@ class SpotlightApp:
 
         self.status_lbl = tk.Label(
             btn_bar,
-            text="Type prompt above or pick a preset, then press Ctrl+Enter to optimize.",
+            text="Type prompt above, then press Enter to optimize directly with token metrics.",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22"
@@ -239,13 +237,13 @@ class SpotlightApp:
 
         self.optimize_btn = tk.Button(
             btn_bar,
-            text="⚡ Optimize (Ctrl+Enter)",
+            text="⚡ Optimize (Enter)",
             bg="#238636",
             fg="white",
             activebackground="#2ea043",
             font=("Segoe UI", 9, "bold"),
             relief="flat",
-            padx=12,
+            padx=14,
             pady=3,
             cursor="hand2",
             command=self.start_optimization
@@ -282,72 +280,7 @@ class SpotlightApp:
         )
         clear_btn.pack(side="right", padx=(0, 6))
 
-        # Ambiguity Banner
-        self.ambiguity_frame = tk.Frame(
-            self.root,
-            bg="#2d2200",
-            padx=14,
-            pady=10,
-            highlightthickness=1,
-            highlightbackground="#d29922"
-        )
-
-        amb_top = tk.Frame(self.ambiguity_frame, bg="#2d2200")
-        amb_top.pack(fill="x")
-        self.ambiguity_lbl = tk.Label(
-            amb_top,
-            text="⚠️ Ambiguity Detected: Please clarify what you want:",
-            font=("Segoe UI", 9, "bold"),
-            fg="#e3b341",
-            bg="#2d2200"
-        )
-        self.ambiguity_lbl.pack(side="left")
-
-        self.ambiguity_q_lbl = tk.Label(
-            self.ambiguity_frame,
-            text="",
-            font=("Segoe UI", 9),
-            fg="#f0f6fc",
-            bg="#2d2200",
-            wraplength=800,
-            justify="left"
-        )
-        self.ambiguity_q_lbl.pack(anchor="w", pady=(2, 4))
-
-        # Option pills
-        self.pills_container = tk.Frame(self.ambiguity_frame, bg="#2d2200")
-        self.pills_container.pack(fill="x", pady=(2, 6))
-
-        q_input_row = tk.Frame(self.ambiguity_frame, bg="#2d2200")
-        q_input_row.pack(fill="x")
-
-        self.clarify_entry = tk.Entry(
-            q_input_row,
-            bg="#0d1117",
-            fg="#f0f6fc",
-            insertbackground="#e3b341",
-            font=("Segoe UI", 9),
-            relief="flat",
-            highlightthickness=1,
-            highlightbackground="#d29922"
-        )
-        self.clarify_entry.pack(side="left", fill="x", expand=True, padx=(0, 8), ipady=3)
-        self.clarify_entry.bind("<Return>", lambda e: self.submit_clarification())
-
-        self.clarify_submit_btn = tk.Button(
-            q_input_row,
-            text="Apply & Run ↵",
-            bg="#d29922",
-            fg="black",
-            font=("Segoe UI", 8, "bold"),
-            relief="flat",
-            padx=12,
-            cursor="hand2",
-            command=self.submit_clarification
-        )
-        self.clarify_submit_btn.pack(side="right")
-
-        # Results Container (Dedicated Solely to High Precision)
+        # Results Container (Dedicated Solely to High Precision with Token Optimization)
         self.results_frame = tk.Frame(self.root, bg="#0d1117")
         self.results_frame.pack(fill="both", expand=True, padx=14, pady=6)
 
@@ -367,7 +300,7 @@ class SpotlightApp:
 
         self.hp_title = tk.Label(
             hp_head,
-            text="🎯 High Precision Prompt (Strict & Complete)",
+            text="🎯 High Precision Prompt",
             font=("Segoe UI", 10, "bold"),
             fg="#58a6ff",
             bg="#161b22"
@@ -376,18 +309,18 @@ class SpotlightApp:
 
         self.hp_badge = tk.Label(
             hp_head,
-            text="0 tokens",
+            text="⚡ Token Optimization",
             font=("Segoe UI", 8, "bold"),
             fg="#58a6ff",
             bg="#21262d",
-            padx=8,
+            padx=10,
             pady=2
         )
         self.hp_badge.pack(side="right")
 
         self.hp_desc = tk.Label(
             self.card_hp,
-            text="Structured schema, strict invariants, explicit edge-case negative constraints.",
+            text="Directly compiled with strict invariants and deterministic token optimization.",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22",
@@ -416,7 +349,7 @@ class SpotlightApp:
 
         self.copy_hp_btn = tk.Button(
             footer_row,
-            text="📋 Copy High Precision Prompt (Enter / Ctrl+C)",
+            text="📋 Copy High Precision Prompt (Enter / Click)",
             bg="#238636",
             fg="white",
             activebackground="#2ea043",
@@ -443,20 +376,32 @@ class SpotlightApp:
     def _bind_shortcuts(self):
         self.root.bind("<Escape>", lambda e: self.hide_window())
         self.root.bind("<Control-Return>", lambda e: self.start_optimization())
-        self.root.bind("<Alt-Return>", lambda e: self.start_optimization())
 
-        # Copy when pressing Enter outside of text inputs
-        self.root.bind("<Return>", self._handle_return_key)
+        # In input_text: ENTER directly optimizes! Shift+Enter creates a new line
+        self.input_text.bind("<Return>", self._on_input_enter)
+        self.input_text.bind("<Shift-Return>", self._on_input_shift_enter)
+
+        # Outside input_text: ENTER copies the prompt!
+        self.root.bind("<Return>", self._handle_window_return)
         self.root.bind("<Control-c>", self._handle_ctrl_c)
 
-    def _handle_return_key(self, event):
+    def _on_input_enter(self, event):
+        """Directly optimize when Enter is pressed inside the input text box!"""
+        self.start_optimization()
+        return "break"  # Prevent inserting newline
+
+    def _on_input_shift_enter(self, event):
+        """Allow Shift+Enter to insert multiline input if needed."""
+        return None
+
+    def _handle_window_return(self, event):
         focused = self.root.focus_get()
-        if focused not in [self.input_text, self.clarify_entry]:
+        if focused != self.input_text:
             self.copy_high_precision()
 
     def _handle_ctrl_c(self, event):
         focused = self.root.focus_get()
-        if focused not in [self.input_text, self.clarify_entry]:
+        if focused != self.input_text:
             self.copy_high_precision()
 
     def _setup_global_hotkeys(self):
@@ -490,7 +435,7 @@ class SpotlightApp:
             user32 = ctypes.windll.user32
             kernel32 = ctypes.windll.kernel32
             hwnd = self.root.winfo_id()
-            root_hwnd = user32.GetAncestor(hwnd, 2) or hwnd  # GA_ROOT = 2
+            root_hwnd = user32.GetAncestor(hwnd, 2) or hwnd
 
             user32.ShowWindow(root_hwnd, 9)
 
@@ -512,7 +457,7 @@ class SpotlightApp:
         self.root.focus_force()
         self.input_text.focus_set()
 
-        # Release hard topmost lock after 500ms so other windows can be used if desired
+        # Release hard topmost lock after 500ms
         self.root.after(500, lambda: self.root.attributes("-topmost", False))
 
     def hide_window(self):
@@ -549,21 +494,21 @@ class SpotlightApp:
         if not raw:
             return
         engine_name = "Ollama 7B" if self.backend_mode == "ollama" else "Fast Dynamic Engine"
-        self.status_lbl.config(text=f"⚡ Compiling with {engine_name}...", fg="#58a6ff")
+        self.status_lbl.config(text=f"⚡ Optimizing directly with {engine_name}...", fg="#58a6ff")
         self.optimize_btn.config(state="disabled")
 
         threading.Thread(
             target=self._execute_optimization,
-            args=(raw, self.clarification_answers),
+            args=(raw,),
             daemon=True
         ).start()
 
-    def _execute_optimization(self, raw_prompt: str, answers: Dict[str, str]):
-        """Call FastAPI backend if up, or fall back to in-process engine seamlessly."""
+    def _execute_optimization(self, raw_prompt: str):
+        """Call backend with direct force_generate=True (no JSON/ambiguity popups)."""
         payload = json.dumps({
             "raw_prompt": raw_prompt,
             "backend_type": self.backend_mode,
-            "clarification_answers": answers if answers else None
+            "force_generate": True
         }).encode("utf-8")
 
         req = urllib.request.Request(
@@ -588,7 +533,7 @@ class SpotlightApp:
             inproc_optimizer = QuickOptimizer(backend=backend)
             res = inproc_optimizer.optimize_quick(
                 raw_prompt=raw_prompt,
-                clarification_answers=answers if answers else None,
+                force_generate=True
             )
             data = res.model_dump()
             self.root.after(0, self._render_results, data)
@@ -597,72 +542,35 @@ class SpotlightApp:
 
     def _render_results(self, data: Dict[str, Any]):
         self.optimize_btn.config(state="normal")
-        status = data.get("status")
-
-        if status == "needs_clarification":
-            questions = data.get("clarification_questions", [])
-            if questions:
-                q = questions[0]
-                self.active_question_id = q.get("id")
-                self.ambiguity_q_lbl.config(
-                    text=f"Question: {q.get('question')}\nDefault Assumption: {q.get('default_assumption')}"
-                )
-                self.clarify_entry.delete(0, tk.END)
-
-                # Render Clickable Option Pills
-                for widget in self.pills_container.winfo_children():
-                    widget.destroy()
-
-                options = q.get("suggested_options", []) or ["Strict JSON", "Markdown Table", "Plain text bullets"]
-                for opt in options:
-                    pill_btn = tk.Button(
-                        self.pills_container,
-                        text=opt,
-                        bg="#21262d",
-                        fg="#e3b341",
-                        activebackground="#d29922",
-                        activeforeground="black",
-                        font=("Segoe UI", 8),
-                        relief="flat",
-                        padx=8,
-                        pady=2,
-                        cursor="hand2",
-                        command=lambda o=opt: self.choose_option(o)
-                    )
-                    pill_btn.pack(side="left", padx=3)
-
-                self.ambiguity_frame.pack(fill="x", padx=14, pady=(0, 6), before=self.results_frame)
-                self.clarify_entry.focus_set()
-                self.status_lbl.config(text="Ambiguity detected. Click an option or answer above.", fg="#d29922")
-                return
-
-        # Status == "ready": Display ONLY High Precision Result
-        self.ambiguity_frame.pack_forget()
         self.current_response = data
 
-        hp = data.get("high_precision", {})
+        hp = data.get("high_precision") or {}
+        orig_t = data.get("original_tokens", 0)
+        hp_t = hp.get("token_count", 0)
+        saved = orig_t - hp_t
 
         self.hp_text.delete("1.0", tk.END)
         self.hp_text.insert(tk.END, hp.get("prompt_text", ""))
-        self.hp_badge.config(text=f"{hp.get('token_count', 0)} tokens")
-        self.hp_desc.config(text=hp.get("description", "Structured schema, invariants & edge cases."))
+
+        # Prominently display token optimization statistics
+        if orig_t > 0:
+            pct = (saved / orig_t) * 100
+            if saved > 0:
+                self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens (-{pct:.0f}%)", fg="#2ea043")
+            else:
+                self.hp_badge.config(text=f"⚡ {orig_t} ➔ {hp_t} tokens (Invariants Preserved)", fg="#58a6ff")
+        else:
+            self.hp_badge.config(text=f"⚡ {hp_t} tokens", fg="#58a6ff")
+
+        self.hp_desc.config(
+            text=f"Token Optimization: {orig_t} input tokens ➔ {hp_t} compiled tokens. Invariants & execution rules enforced."
+        )
 
         self.status_lbl.config(
-            text="✓ High Precision Prompt ready! Press Enter or click Copy button.",
+            text=f"✓ Prompt optimized directly ({hp_t} tokens)! Press Enter or click Copy button.",
             fg="#2ea043"
         )
         self.copy_hp_btn.focus_set()
-
-    def choose_option(self, option_text: str):
-        self.clarify_entry.delete(0, tk.END)
-        self.clarify_entry.insert(tk.END, option_text)
-        self.submit_clarification()
-
-    def submit_clarification(self):
-        val = self.clarify_entry.get().strip()
-        if self.active_question_id and val:
-            self.clarification_answers[self.active_question_id] = val
-        self.start_optimization()
 
     def copy_high_precision(self):
         txt = self.hp_text.get("1.0", tk.END).strip()

@@ -8,8 +8,9 @@ from prompt_optimizer.models.analysis import ClarificationQuestion, AmbiguityIte
 
 class QuickOptimizeRequest(BaseModel):
     raw_prompt: str = Field(..., min_length=2, description="Raw unoptimized prompt")
-    backend_type: str = Field(default="ollama", description="ollama | mock | gemini | openai")
+    backend_type: str = Field(default="mock", description="mock | ollama | gemini | openai")
     model_name: Optional[str] = Field(default=None)
+    force_generate: bool = Field(default=True, description="Direct execution without halting for questions")
     clarification_answers: Optional[Dict[str, str]] = Field(default=None)
 
 

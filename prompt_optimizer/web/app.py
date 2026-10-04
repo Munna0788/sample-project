@@ -141,6 +141,7 @@ def quick_optimize_prompt(req: QuickOptimizeRequest):
         return quick_opt.optimize_quick(
             raw_prompt=req.raw_prompt,
             clarification_answers=req.clarification_answers,
+            force_generate=req.force_generate,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Quick optimization failed: {str(e)}")

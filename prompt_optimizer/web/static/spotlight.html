@@ -419,45 +419,28 @@
           body: JSON.stringify({
             raw_prompt: text,
             backend_type: engine,
-            clarification_answers: clarificationAnswers
+            force_generate: true
           })
         });
         const data = await res.json();
 
-        if (data.status === "needs_clarification") {
-          const q = data.clarification_questions[0];
-          activeQuestionId = q ? q.id : "CLAR-01";
-          ambiguityQuestionText.textContent = q ? `${q.question} (Default: ${q.default_assumption})` : "Please clarify expected format or scope.";
-
-          ambiguityOptions.innerHTML = "";
-          const opts = (q && q.suggested_options && q.suggested_options.length) ? q.suggested_options : ["Strict JSON", "Markdown Table", "Plain text bullets"];
-          opts.forEach(opt => {
-            const btn = document.createElement("button");
-            btn.className = "option-pill";
-            btn.textContent = opt;
-            btn.onclick = () => {
-              clarifyInput.value = opt;
-              applyClarificationBtn.click();
-            };
-            ambiguityOptions.appendChild(btn);
-          });
-
-          ambiguityBanner.style.display = "flex";
-          clarifyInput.focus();
-          statusIndicator.textContent = "Ambiguity detected - pick an option or answer above.";
-          statusIndicator.style.color = "#d29922";
-          return;
-        }
-
-        // Status == ready: Show ONLY High Precision
+        // Directly display High Precision with Token Optimization metrics
         ambiguityBanner.style.display = "none";
         emptyState.style.display = "none";
         cardHp.style.display = "flex";
 
-        hpPromptText.textContent = data.high_precision.prompt_text;
-        hpTokens.textContent = `${data.high_precision.token_count} tokens`;
+        const origT = data.original_tokens || 0;
+        const hpT = data.high_precision.token_count || 0;
+        const pct = origT > 0 ? Math.round(((origT - hpT) / origT) * 100) : 0;
 
-        statusIndicator.textContent = "✓ High Precision prompt ready! Press Enter or click Copy.";
+        hpPromptText.textContent = data.high_precision.prompt_text;
+        if (origT > 0 && pct > 0) {
+          hpTokens.textContent = `⚡ ${origT} ➔ ${hpT} tokens (-${pct}%)`;
+        } else {
+          hpTokens.textContent = `⚡ ${origT} ➔ ${hpT} tokens`;
+        }
+
+        statusIndicator.textContent = `✓ Optimized directly (${hpT} tokens)! Press Enter or click Copy.`;
         statusIndicator.style.color = "#2ea043";
       } catch (err) {
         statusIndicator.textContent = "Error: " + err.message;
