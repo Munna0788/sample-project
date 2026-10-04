@@ -4,28 +4,28 @@
 
 ---
 
-## ⚡ Quickstart (1-Command Run for Anyone)
+## ⚡ Quickstart (1-Command Run)
 
-Anyone can clone and run the entire local system in 5 seconds with a single command:
-
-### 🪟 On Windows:
-```cmd
-git clone https://github.com/Munna0788/sample-project.git
-cd sample-project
-run.bat
-```
-*(Or simply double-click `run.bat`!)*
-
-### 🐧 Cross-Platform (Windows / macOS / Linux):
+### 🚀 Universal 1-Command Run (Windows PowerShell, CMD, macOS, Linux):
 ```bash
  run.bat
 ```
 
+### 🪟 Windows (Batch script / Explorer):
+```cmd
+.\run.bat
+```
+*(Or simply double-click `run.bat` in Windows Explorer)*
+
+### 🌐 Live Online Demo (No Installation Needed):
+Open the live deployment directly in your browser:
+**https://prompt-compiler.embarko.app**
+
 ### 🎯 What Happens Automatically:
 1. Verifies and installs all dependencies (`requirements.txt`).
-2. Starts the background engine on `http://localhost:8000`.
-3. Activates the **Spotlight HUD box** summoned with **`Win + O`** (or `Alt + O`).
-4. Paste your raw prompt, press **`Enter`**, and instantly get the intelligent, token-optimized prompt!
+2. Starts the background FastAPI server on `http://localhost:8000`.
+3. Launches the **Spotlight Desktop HUD** summoned with **`Win + O`** (or `Alt + O`).
+4. Paste your raw prompt, press **`Enter`**, and instantly get the token-optimized prompt!
 
 ---
 
