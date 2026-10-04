@@ -14,7 +14,7 @@ netstat -ano | findstr /R /C:":8000 .*LISTENING" >nul
 if %errorlevel% neq 0 (
     echo [1/2] Launching Background API Server...
     start /b %PYTHON_CMD% -m uvicorn prompt_optimizer.web.app:app --host 0.0.0.0 --port 8000
-    timeout /t 2 >nul
+    ping 127.0.0.1 -n 3 >nul
 ) else (
     echo [1/2] Background API Server is active on port 8000.
 )
