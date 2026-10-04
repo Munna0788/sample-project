@@ -6,16 +6,18 @@
 
 ## ⚡ Quickstart (1-Command Run)
 
-### 🚀 Universal 1-Command Run (Windows PowerShell, CMD, macOS, Linux):
+### 🚀 Universal 1-Command Run (Windows, macOS, Linux):
 ```bash
- run.bat
+git clone https://github.com/Munna0788/sample-project.git
+cd sample-project
+python run.py
 ```
 
-### 🪟 Windows (Batch script / Explorer):
-```cmd
+### 🪟 Windows (PowerShell / CMD / File Explorer):
+```powershell
 .\run.bat
 ```
-*(Or simply double-click `run.bat` in Windows Explorer)*
+*(Or simply double-click `run.bat` in File Explorer)*
 
 ### 🌐 Live Online Demo (No Installation Needed):
 Open the live deployment directly in your browser:
