@@ -18,9 +18,7 @@ run.bat
 
 ### 🐧 Cross-Platform (Windows / macOS / Linux):
 ```bash
-git clone https://github.com/Munna0788/sample-project.git
-cd sample-project
-python run.py
+ run.bat
 ```
 
 ### 🎯 What Happens Automatically:
