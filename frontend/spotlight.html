@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PromptCompiler Spotlight HUD</title>
+  <title>PromptCompiler Spotlight HUD [High Precision]</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: rgba(13, 17, 23, 0.9);
+      background-color: rgba(13, 17, 23, 0.95);
       backdrop-filter: blur(12px);
       font-family: 'Inter', sans-serif;
       color: #f0f6fc;
@@ -24,7 +24,7 @@
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 14px;
-      box-shadow: 0 30px 80px rgba(0,0,0,0.8);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.85);
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -83,7 +83,7 @@
       background: #21262d;
       border: 1px solid #30363d;
       color: #c9d1d9;
-      padding: 3px 10px;
+      padding: 4px 12px;
       border-radius: 999px;
       font-size: 0.75rem;
       cursor: pointer;
@@ -122,6 +122,7 @@
       font-size: 0.75rem;
       cursor: pointer;
       font-weight: 500;
+      transition: all 0.15s;
     }
     .option-pill:hover { background: #d29922; color: black; }
     .ambiguity-input-row { display: flex; gap: 8px; }
@@ -144,14 +145,13 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    /* Dual Results Container */
+    /* Dedicated Single Result Container */
     .results-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      display: flex;
+      flex-direction: column;
       padding: 20px;
       background: #0d1117;
-      min-height: 380px;
+      min-height: 400px;
     }
     .result-card {
       background: #161b22;
@@ -161,8 +161,8 @@
       display: flex;
       flex-direction: column;
       transition: all 0.2s;
+      flex: 1;
     }
-    .result-card:hover { border-color: #58a6ff; }
     .card-header {
       display: flex;
       justify-content: space-between;
@@ -170,108 +170,113 @@
       margin-bottom: 6px;
     }
     .card-title {
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       font-weight: 700;
       display: flex;
       align-items: center;
       gap: 6px;
+      color: #58a6ff;
     }
-    .card-concise .card-title { color: #2ea043; }
-    .card-hp .card-title { color: #58a6ff; }
     .token-pill {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       background: #21262d;
-      padding: 2px 8px;
+      padding: 3px 10px;
       border-radius: 999px;
-      color: #8b949e;
+      color: #58a6ff;
       font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
     }
     .card-desc {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       color: #8b949e;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
     .prompt-box {
       flex: 1;
       background: #0d1117;
       border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 12px;
+      border-radius: 8px;
+      padding: 14px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-      color: #c9d1d9;
+      font-size: 0.9rem;
+      color: #e6edf3;
       white-space: pre-wrap;
       overflow-y: auto;
-      max-height: 250px;
-      line-height: 1.5;
+      min-height: 250px;
+      max-height: 380px;
+      line-height: 1.6;
     }
     .card-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 12px;
+      margin-top: 14px;
     }
     .copy-btn {
       width: 100%;
-      background: #21262d;
-      color: #f0f6fc;
-      border: 1px solid #30363d;
-      padding: 8px;
+      background: #238636;
+      color: #ffffff;
+      border: none;
+      padding: 10px;
       border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: 0.9rem;
+      font-weight: 700;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
       transition: all 0.2s;
     }
-    .copy-btn:hover { background: #30363d; color: white; }
+    .copy-btn:hover { background: #2ea043; }
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: 100%;
+      min-height: 300px;
+      color: #8b949e;
+      gap: 8px;
+      font-size: 0.9rem;
+    }
     /* Footer */
     .spotlight-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 12px 20px;
-      background: #161b22;
       border-top: 1px solid #30363d;
-      font-size: 0.8rem;
+      background: #161b22;
+      font-size: 0.75rem;
       color: #8b949e;
     }
     .keys-hint span {
       background: #21262d;
+      border: 1px solid #30363d;
       padding: 2px 6px;
       border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
       color: #c9d1d9;
-    }
-    .empty-state {
-      grid-column: 1 / -1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #8b949e;
-      text-align: center;
-      gap: 10px;
     }
   </style>
 </head>
 <body>
+
   <div class="spotlight-box">
-    <!-- Search / Prompt Input -->
+    <!-- Top Search Input Bar -->
     <div class="search-row">
       <span class="search-icon">⚡</span>
       <input 
         type="text" 
         id="promptInput" 
         class="search-input" 
-        placeholder="Type or paste prompt... (Press Enter to optimize)" 
-        autofocus
+        placeholder="Type raw prompt here and press Enter to compile High Precision prompt..." 
+        autofocus 
       />
       <span class="token-badge" id="inputTokenBadge">0 tks</span>
-      <span class="shortcut-badge">Enter ↵</span>
+      <span class="shortcut-badge">Win + O</span>
     </div>
 
     <!-- Quick Presets -->
@@ -294,37 +299,24 @@
       </div>
     </div>
 
-    <!-- Dual Results (Concise vs High Precision) -->
+    <!-- Dedicated High Precision Result -->
     <div class="results-container" id="resultsContainer">
       <div class="empty-state" id="emptyState">
-        <p style="font-size: 1.15rem; font-weight:600; color: #f0f6fc;">⚡ Instant Prompt Optimizer HUD</p>
-        <p>Type a prompt above or pick a preset to generate <strong>2 optimized variations</strong>:</p>
-        <p><strong>1. Concise</strong> (Fast & token-lean) &bull; <strong>2. High Precision</strong> (Strict & complete)</p>
+        <p style="font-size: 1.15rem; font-weight:600; color: #f0f6fc;">⚡ Instant High Precision Prompt HUD</p>
+        <p>Type a prompt above or pick a preset to generate the <strong>High Precision</strong> prompt.</p>
+        <p>Enforces strict execution invariants, system role definition, output schemas & negative constraints.</p>
       </div>
 
-      <!-- Result 1: Concise -->
-      <div class="result-card card-concise" id="cardConcise" style="display:none;">
-        <div class="card-header">
-          <span class="card-title">1️⃣ Concise (Fast & Lean)</span>
-          <span class="token-pill" id="conciseTokens">0 tokens</span>
-        </div>
-        <div class="card-desc">Minimalist imperative directives, trims soft styling.</div>
-        <div class="prompt-box" id="concisePromptText"></div>
-        <div class="card-footer">
-          <button class="copy-btn" id="copyConciseBtn">📋 Copy Concise [Key: 1]</button>
-        </div>
-      </div>
-
-      <!-- Result 2: High Precision -->
+      <!-- Result Card: High Precision -->
       <div class="result-card card-hp" id="cardHp" style="display:none;">
         <div class="card-header">
-          <span class="card-title">2️⃣ High Precision (Strict)</span>
+          <span class="card-title">🎯 High Precision Prompt (Strict & Complete)</span>
           <span class="token-pill" id="hpTokens">0 tokens</span>
         </div>
-        <div class="card-desc">Structured schema, strict execution invariants & edge cases.</div>
+        <div class="card-desc">Structured schema, strict invariants & explicit edge-case negative constraints.</div>
         <div class="prompt-box" id="hpPromptText"></div>
         <div class="card-footer">
-          <button class="copy-btn" id="copyHpBtn">📋 Copy High Precision [Key: 2]</button>
+          <button class="copy-btn" id="copyHpBtn">📋 Copy High Precision Prompt (Enter / Click)</button>
         </div>
       </div>
     </div>
@@ -332,7 +324,7 @@
     <!-- Footer Controls -->
     <div class="spotlight-footer">
       <div class="keys-hint">
-        <span>Enter</span> Optimize &bull; <span>1</span> Copy Concise &bull; <span>2</span> Copy Precision &bull; <span>Esc</span> Dismiss
+        <span>Enter</span> Run &bull; <span>Click/Enter</span> Copy Prompt &bull; <span>Esc</span> Dismiss
       </div>
       <div id="statusIndicator">Ready</div>
     </div>
@@ -342,13 +334,9 @@
     const promptInput = document.getElementById("promptInput");
     const inputTokenBadge = document.getElementById("inputTokenBadge");
     const emptyState = document.getElementById("emptyState");
-    const cardConcise = document.getElementById("cardConcise");
     const cardHp = document.getElementById("cardHp");
-    const concisePromptText = document.getElementById("concisePromptText");
     const hpPromptText = document.getElementById("hpPromptText");
-    const conciseTokens = document.getElementById("conciseTokens");
     const hpTokens = document.getElementById("hpTokens");
-    const copyConciseBtn = document.getElementById("copyConciseBtn");
     const copyHpBtn = document.getElementById("copyHpBtn");
     const ambiguityBanner = document.getElementById("ambiguityBanner");
     const ambiguityQuestionText = document.getElementById("ambiguityQuestionText");
@@ -391,7 +379,6 @@
       } else if (e.key === "Escape") {
         promptInput.value = "";
         emptyState.style.display = "flex";
-        cardConcise.style.display = "none";
         cardHp.style.display = "none";
         ambiguityBanner.style.display = "none";
       }
@@ -399,12 +386,13 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.target === promptInput || e.target === clarifyInput) return;
-      if (e.key === "1") {
-        copyConcise();
-      } else if (e.key === "2") {
+      if (e.key === "Enter" || e.key === "c" || e.key === "C") {
         copyHighPrecision();
       } else if (e.key === "Escape") {
-        window.close();
+        promptInput.value = "";
+        emptyState.style.display = "flex";
+        cardHp.style.display = "none";
+        ambiguityBanner.style.display = "none";
       }
     });
 
@@ -412,7 +400,7 @@
       const text = promptInput.value.trim();
       if (!text) return;
 
-      statusIndicator.textContent = "⚡ Optimizing dual results...";
+      statusIndicator.textContent = "⚡ Compiling high precision prompt...";
       statusIndicator.style.color = "#58a6ff";
 
       try {
@@ -452,19 +440,15 @@
           return;
         }
 
-        // Status == ready
+        // Status == ready: Show ONLY High Precision
         ambiguityBanner.style.display = "none";
         emptyState.style.display = "none";
-        cardConcise.style.display = "flex";
         cardHp.style.display = "flex";
-
-        concisePromptText.textContent = data.concise.prompt_text;
-        conciseTokens.textContent = `${data.concise.token_count} tokens (-${data.concise.reduction_percentage.toFixed(0)}%)`;
 
         hpPromptText.textContent = data.high_precision.prompt_text;
         hpTokens.textContent = `${data.high_precision.token_count} tokens`;
 
-        statusIndicator.textContent = "✓ Complete! Press [1] for Concise, [2] for Precision.";
+        statusIndicator.textContent = "✓ High Precision prompt ready! Press Enter or click Copy.";
         statusIndicator.style.color = "#2ea043";
       } catch (err) {
         statusIndicator.textContent = "Error: " + err.message;
@@ -480,30 +464,20 @@
       runQuickOptimize();
     });
 
-    clarifyInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        applyClarificationBtn.click();
-      }
-    });
-
-    function copyConcise() {
-      if (concisePromptText.textContent) {
-        navigator.clipboard.writeText(concisePromptText.textContent);
-        copyConciseBtn.textContent = "✓ Copied to Clipboard!";
-        setTimeout(() => { copyConciseBtn.textContent = "📋 Copy Concise [Key: 1]"; }, 1500);
-      }
-    }
+    copyHpBtn.addEventListener("click", copyHighPrecision);
 
     function copyHighPrecision() {
-      if (hpPromptText.textContent) {
-        navigator.clipboard.writeText(hpPromptText.textContent);
-        copyHpBtn.textContent = "✓ Copied to Clipboard!";
-        setTimeout(() => { copyHpBtn.textContent = "📋 Copy High Precision [Key: 2]"; }, 1500);
-      }
+      const text = hpPromptText.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyHpBtn.textContent = "✓ Copied High Precision Prompt!";
+        statusIndicator.textContent = "✓ Copied to clipboard! (Esc to reset)";
+        statusIndicator.style.color = "#2ea043";
+        setTimeout(() => {
+          copyHpBtn.textContent = "📋 Copy High Precision Prompt (Enter / Click)";
+        }, 1800);
+      });
     }
-
-    copyConciseBtn.addEventListener("click", copyConcise);
-    copyHpBtn.addEventListener("click", copyHighPrecision);
   </script>
 </body>
 </html>

@@ -1,11 +1,12 @@
 """Desktop Spotlight Quick Box: Floating prompt optimizer summoned by Win+O.
 Features:
-- Global system-wide hotkey Win+O (and Alt+O)
-- Dual-result generation: 1️⃣ Concise (Fast & Lean) vs 2️⃣ High Precision (Strict)
-- Ambiguity detection with instant clickable option pills
+- Global system-wide hotkeys Win+O and Alt+O
+- Automatically pops up to foreground when summoned
+- Displays exclusively the High Precision optimized prompt
+- Ambiguity detection with 1-click option pills
 - Quick demo presets (CSV Analyst, Support Bot, JSON Extractor, Code Reviewer)
 - Self-contained in-process fallback if HTTP server is offline
-- 1-Key instant copy ([1] for Concise, [2] for High Precision, Esc to hide)
+- 1-Key instant copy (Enter / Ctrl+C, Esc to hide)
 """
 
 import json
@@ -14,6 +15,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 import urllib.request
+import ctypes
 from typing import Optional, Dict, Any, List
 
 try:
@@ -53,16 +55,15 @@ PRESETS = {
 
 
 class SpotlightApp:
-    """Floating Spotlight-style Box for instant prompt optimization summoned by Win+O."""
+    """Floating Spotlight-style Box that pops up on Win+O and displays High Precision prompts."""
 
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("⚡ PromptCompiler Spotlight [Win+O]")
-        self.root.geometry("860x640")
+        self.root.geometry("840x620")
         self.root.configure(bg="#0d1117")
-        self.root.attributes("-topmost", True)
 
-        self._center_window(860, 640)
+        self._center_window(840, 620)
 
         # In-process backup optimizer
         self.fallback_backend = OllamaBackend() if OllamaBackend().is_available() else MockLLMBackend()
@@ -79,6 +80,9 @@ class SpotlightApp:
 
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
+        # Automatically pop up immediately upon launching
+        self.root.after(100, self.show_window)
+
     def _center_window(self, w: int, h: int):
         self.root.update_idletasks()
         screen_w = self.root.winfo_screenwidth()
@@ -88,7 +92,7 @@ class SpotlightApp:
         self.root.geometry(f"{w}x{h}+{x}+{y}")
 
     def _build_ui(self):
-        # Header / Search container
+        # Header Container
         header_frame = tk.Frame(
             self.root,
             bg="#161b22",
@@ -113,50 +117,61 @@ class SpotlightApp:
 
         hotkey_tag = tk.Label(
             top_row,
-            text="Global Hotkey: Win+O",
+            text="Global Hotkey: Win+O (or Alt+O)",
             font=("Segoe UI", 9, "bold"),
             fg="#2ea043",
             bg="#21262d",
-            padx=6,
-            pady=1
+            padx=8,
+            pady=2
         )
         hotkey_tag.pack(side="left", padx=(10, 0))
 
         esc_hint = tk.Label(
             top_row,
-            text="Esc: Hide  |  Ctrl+Enter: Run  |  [1] Copy Concise  |  [2] Copy Precision",
+            text="Esc: Hide  |  Ctrl+Enter: Run  |  Enter: Copy Prompt",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22"
         )
         esc_hint.pack(side="right")
 
-        # Quick Presets Bar
+        # Presets Bar
         presets_bar = tk.Frame(header_frame, bg="#161b22")
         presets_bar.pack(fill="x", pady=(2, 6))
 
-        tk.Label(presets_bar, text="💡 Presets:", font=("Segoe UI", 8, "bold"), fg="#8b949e", bg="#161b22").pack(side="left", padx=(0, 6))
+        tk.Label(
+            presets_bar,
+            text="💡 Presets:",
+            font=("Segoe UI", 8, "bold"),
+            fg="#8b949e",
+            bg="#161b22"
+        ).pack(side="left", padx=(0, 6))
 
-        for key, name in [("csv", "📊 CSV Analyst"), ("support", "💬 Support Bot"), ("json", "⚡ JSON Extractor"), ("code", "🐍 Code Reviewer")]:
+        for key, name in [
+            ("csv", "📊 CSV Analyst"),
+            ("support", "💬 Support Bot"),
+            ("json", "⚡ JSON Extractor"),
+            ("code", "🐍 Code Reviewer")
+        ]:
             btn = tk.Button(
                 presets_bar,
                 text=name,
-                font=("Segoe UI", 7),
+                font=("Segoe UI", 8),
                 bg="#21262d",
                 fg="#c9d1d9",
                 activebackground="#30363d",
                 relief="flat",
-                padx=6,
-                pady=1,
+                padx=8,
+                pady=2,
                 cursor="hand2",
                 command=lambda k=key: self.load_preset(k)
             )
-            btn.pack(side="left", padx=2)
+            btn.pack(side="left", padx=3)
 
         # Input text area
         self.input_text = tk.Text(
             header_frame,
-            height=4,
+            height=3,
             bg="#0d1117",
             fg="#f0f6fc",
             insertbackground="#58a6ff",
@@ -177,7 +192,7 @@ class SpotlightApp:
 
         self.status_lbl = tk.Label(
             btn_bar,
-            text="Type or paste prompt above, then press Ctrl+Enter to optimize.",
+            text="Type prompt above or pick a preset, then press Ctrl+Enter to optimize.",
             font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22"
@@ -229,7 +244,7 @@ class SpotlightApp:
         )
         clear_btn.pack(side="right", padx=(0, 6))
 
-        # Ambiguity Banner (Hidden by default)
+        # Ambiguity Banner
         self.ambiguity_frame = tk.Frame(
             self.root,
             bg="#2d2200",
@@ -243,7 +258,7 @@ class SpotlightApp:
         amb_top.pack(fill="x")
         self.ambiguity_lbl = tk.Label(
             amb_top,
-            text="⚠️ Ambiguity Detected: What did you intend?",
+            text="⚠️ Ambiguity Detected: Please clarify what you want:",
             font=("Segoe UI", 9, "bold"),
             fg="#e3b341",
             bg="#2d2200"
@@ -261,7 +276,7 @@ class SpotlightApp:
         )
         self.ambiguity_q_lbl.pack(anchor="w", pady=(2, 4))
 
-        # Quick Option Pills Container
+        # Option pills
         self.pills_container = tk.Frame(self.ambiguity_frame, bg="#2d2200")
         self.pills_container.pack(fill="x", pady=(2, 6))
 
@@ -294,189 +309,171 @@ class SpotlightApp:
         )
         self.clarify_submit_btn.pack(side="right")
 
-        # Results Container (Split 2 Columns: Concise vs High Precision)
+        # Results Container (Dedicated Solely to High Precision)
         self.results_frame = tk.Frame(self.root, bg="#0d1117")
         self.results_frame.pack(fill="both", expand=True, padx=14, pady=6)
 
-        # Card 1: Concise (Fast & Lean)
-        self.card_concise = tk.Frame(
-            self.results_frame,
-            bg="#161b22",
-            highlightthickness=1,
-            highlightbackground="#30363d",
-            padx=12,
-            pady=10
-        )
-        self.card_concise.pack(side="left", fill="both", expand=True, padx=(0, 6))
-
-        c1_head = tk.Frame(self.card_concise, bg="#161b22")
-        c1_head.pack(fill="x")
-        tk.Label(
-            c1_head,
-            text="1️⃣ Concise (Fast & Lean)",
-            font=("Segoe UI", 9, "bold"),
-            fg="#2ea043",
-            bg="#161b22"
-        ).pack(side="left")
-        self.c1_badge = tk.Label(
-            c1_head,
-            text="0 tokens",
-            font=("Segoe UI", 8),
-            fg="#8b949e",
-            bg="#21262d",
-            padx=6,
-            pady=1
-        )
-        self.c1_badge.pack(side="right")
-
-        self.c1_desc = tk.Label(
-            self.card_concise,
-            text="Minimalist imperative directives, trims soft styling.",
-            font=("Segoe UI", 7),
-            fg="#8b949e",
-            bg="#161b22",
-            anchor="w"
-        )
-        self.c1_desc.pack(fill="x", pady=(2, 4))
-
-        self.c1_text = tk.Text(
-            self.card_concise,
-            bg="#0d1117",
-            fg="#e6edf3",
-            font=("Consolas", 9),
-            wrap="word",
-            relief="flat",
-            padx=8,
-            pady=6,
-            highlightthickness=1,
-            highlightbackground="#30363d"
-        )
-        self.c1_text.pack(fill="both", expand=True, pady=4)
-
-        self.copy_c1_btn = tk.Button(
-            self.card_concise,
-            text="📋 Copy Concise [Key: 1]",
-            bg="#21262d",
-            fg="#c9d1d9",
-            activebackground="#2ea043",
-            activeforeground="white",
-            font=("Segoe UI", 8, "bold"),
-            relief="flat",
-            pady=5,
-            cursor="hand2",
-            command=self.copy_concise
-        )
-        self.copy_c1_btn.pack(fill="x", pady=(4, 0))
-
-        # Card 2: High Precision (Strict & Complete)
+        # Dedicated High Precision Card
         self.card_hp = tk.Frame(
             self.results_frame,
             bg="#161b22",
             highlightthickness=1,
             highlightbackground="#30363d",
-            padx=12,
-            pady=10
+            padx=14,
+            pady=12
         )
-        self.card_hp.pack(side="right", fill="both", expand=True, padx=(6, 0))
+        self.card_hp.pack(fill="both", expand=True)
 
-        c2_head = tk.Frame(self.card_hp, bg="#161b22")
-        c2_head.pack(fill="x")
+        hp_head = tk.Frame(self.card_hp, bg="#161b22")
+        hp_head.pack(fill="x")
+
         tk.Label(
-            c2_head,
-            text="2️⃣ High Precision (Strict)",
-            font=("Segoe UI", 9, "bold"),
+            hp_head,
+            text="🎯 High Precision Prompt (Strict & Complete)",
+            font=("Segoe UI", 10, "bold"),
             fg="#58a6ff",
             bg="#161b22"
         ).pack(side="left")
-        self.c2_badge = tk.Label(
-            c2_head,
-            text="0 tokens",
-            font=("Segoe UI", 8),
-            fg="#8b949e",
-            bg="#21262d",
-            padx=6,
-            pady=1
-        )
-        self.c2_badge.pack(side="right")
 
-        self.c2_desc = tk.Label(
+        self.hp_badge = tk.Label(
+            hp_head,
+            text="0 tokens",
+            font=("Segoe UI", 8, "bold"),
+            fg="#58a6ff",
+            bg="#21262d",
+            padx=8,
+            pady=2
+        )
+        self.hp_badge.pack(side="right")
+
+        self.hp_desc = tk.Label(
             self.card_hp,
-            text="Structured schema, strict execution invariants & edge cases.",
-            font=("Segoe UI", 7),
+            text="Structured schema, strict invariants, explicit edge-case negative constraints.",
+            font=("Segoe UI", 8),
             fg="#8b949e",
             bg="#161b22",
             anchor="w"
         )
-        self.c2_desc.pack(fill="x", pady=(2, 4))
+        self.hp_desc.pack(fill="x", pady=(2, 6))
 
-        self.c2_text = tk.Text(
+        # Full-sized text area for High Precision prompt
+        self.hp_text = tk.Text(
             self.card_hp,
             bg="#0d1117",
             fg="#e6edf3",
-            font=("Consolas", 9),
+            font=("Consolas", 10),
             wrap="word",
             relief="flat",
-            padx=8,
-            pady=6,
+            padx=10,
+            pady=8,
             highlightthickness=1,
             highlightbackground="#30363d"
         )
-        self.c2_text.pack(fill="both", expand=True, pady=4)
+        self.hp_text.pack(fill="both", expand=True, pady=4)
 
-        self.copy_c2_btn = tk.Button(
-            self.card_hp,
-            text="📋 Copy High Precision [Key: 2]",
-            bg="#21262d",
-            fg="#c9d1d9",
-            activebackground="#58a6ff",
+        # Footer with Copy Button
+        footer_row = tk.Frame(self.card_hp, bg="#161b22")
+        footer_row.pack(fill="x", pady=(6, 0))
+
+        self.copy_hp_btn = tk.Button(
+            footer_row,
+            text="📋 Copy High Precision Prompt (Enter / Ctrl+C)",
+            bg="#238636",
+            fg="white",
+            activebackground="#2ea043",
             activeforeground="white",
-            font=("Segoe UI", 8, "bold"),
+            font=("Segoe UI", 9, "bold"),
             relief="flat",
-            pady=5,
+            pady=6,
             cursor="hand2",
             command=self.copy_high_precision
         )
-        self.copy_c2_btn.pack(fill="x", pady=(4, 0))
+        self.copy_hp_btn.pack(fill="x")
 
     def _bind_shortcuts(self):
         self.root.bind("<Escape>", lambda e: self.hide_window())
         self.root.bind("<Control-Return>", lambda e: self.start_optimization())
         self.root.bind("<Alt-Return>", lambda e: self.start_optimization())
 
-        self.root.bind("1", lambda e: self.copy_concise() if self.current_response and self.root.focus_get() not in [self.input_text, self.clarify_entry] else None)
-        self.root.bind("2", lambda e: self.copy_high_precision() if self.current_response and self.root.focus_get() not in [self.input_text, self.clarify_entry] else None)
+        # Copy when pressing Enter outside of text inputs
+        self.root.bind("<Return>", self._handle_return_key)
+        self.root.bind("<Control-c>", self._handle_ctrl_c)
+
+    def _handle_return_key(self, event):
+        focused = self.root.focus_get()
+        if focused not in [self.input_text, self.clarify_entry]:
+            self.copy_high_precision()
+
+    def _handle_ctrl_c(self, event):
+        focused = self.root.focus_get()
+        if focused not in [self.input_text, self.clarify_entry]:
+            self.copy_high_precision()
 
     def _setup_global_hotkeys(self):
-        """Register global Win+O and Alt+O hotkeys."""
+        """Register global Win+O, Alt+O, and Ctrl+Alt+O hotkeys."""
         if not keyboard:
-            logger.warning("Keyboard library not available. Global hotkey disabled.")
+            logger.warning("Keyboard library not available. Global hotkeys disabled.")
             return
 
         def on_hotkey_pressed():
-            self.root.after(0, self.toggle_window)
+            self.root.after(0, self.show_window)
 
-        try:
-            keyboard.add_hotkey("win+o", on_hotkey_pressed)
-            keyboard.add_hotkey("alt+o", on_hotkey_pressed)
-            logger.info("Registered global hotkeys: Win+O and Alt+O")
-        except Exception as e:
-            logger.error(f"Failed to register global hotkey: {e}")
+        hotkeys = ["win+o", "windows+o", "alt+o", "ctrl+alt+o"]
+        for hk in hotkeys:
+            try:
+                keyboard.add_hotkey(hk, on_hotkey_pressed)
+                logger.info(f"Registered global hotkey: {hk}")
+            except Exception as e:
+                logger.debug(f"Hotkey {hk} registration note: {e}")
 
     def show_window(self):
+        """Automatically pop up and force foreground on Windows."""
         self.root.deiconify()
+        self.root.state("normal")
+        self.root.lift()
         self.root.attributes("-topmost", True)
-        self._center_window(860, 640)
-        self.root.focus_force()
-        self.input_text.focus_set()
+        self._center_window(840, 620)
         self.is_visible = True
 
+        # Win32 force foreground to bypass Windows focus lock
+        try:
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            hwnd = self.root.winfo_id()
+            root_hwnd = user32.GetAncestor(hwnd, 2) or hwnd  # GA_ROOT = 2
+
+            # SW_RESTORE = 9, SW_SHOW = 5
+            user32.ShowWindow(root_hwnd, 9)
+
+            fg_hwnd = user32.GetForegroundWindow()
+            fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None)
+            cur_thread = kernel32.GetCurrentThreadId()
+
+            if fg_thread != cur_thread:
+                user32.AttachThreadInput(fg_thread, cur_thread, True)
+                user32.SetForegroundWindow(root_hwnd)
+                user32.BringWindowToTop(root_hwnd)
+                user32.AttachThreadInput(fg_thread, cur_thread, False)
+            else:
+                user32.SetForegroundWindow(root_hwnd)
+                user32.BringWindowToTop(root_hwnd)
+        except Exception as e:
+            logger.debug(f"Win32 foreground note: {e}")
+
+        self.root.focus_force()
+        self.input_text.focus_set()
+
+        # Release hard topmost lock after 500ms so other windows can be used if desired
+        self.root.after(500, lambda: self.root.attributes("-topmost", False))
+
     def hide_window(self):
+        """Hide window to background."""
         self.root.withdraw()
         self.is_visible = False
 
     def toggle_window(self):
         if self.is_visible:
-            self.show_window()
+            self.hide_window()
         else:
             self.show_window()
 
@@ -502,7 +499,7 @@ class SpotlightApp:
         raw = self.input_text.get("1.0", tk.END).strip()
         if not raw:
             return
-        self.status_lbl.config(text="⚡ Compiling prompt...", fg="#58a6ff")
+        self.status_lbl.config(text="⚡ Compiling high precision prompt...", fg="#58a6ff")
         self.optimize_btn.config(state="disabled")
 
         threading.Thread(
@@ -531,7 +528,7 @@ class SpotlightApp:
                 self.root.after(0, self._render_results, data)
                 return
         except Exception as e:
-            logger.info(f"API endpoint not reachable ({e}). Using in-process engine fallback.")
+            logger.info(f"API endpoint offline ({e}). Using in-process engine fallback.")
 
         # In-process execution fallback
         try:
@@ -554,7 +551,7 @@ class SpotlightApp:
                 q = questions[0]
                 self.active_question_id = q.get("id")
                 self.ambiguity_q_lbl.config(
-                    text=f"Question: {q.get('question')}\nDefault: {q.get('default_assumption')}"
+                    text=f"Question: {q.get('question')}\nDefault Assumption: {q.get('default_assumption')}"
                 )
                 self.clarify_entry.delete(0, tk.END)
 
@@ -585,30 +582,22 @@ class SpotlightApp:
                 self.status_lbl.config(text="Ambiguity detected. Click an option or answer above.", fg="#d29922")
                 return
 
-        # Status == "ready"
+        # Status == "ready": Display ONLY High Precision Result
         self.ambiguity_frame.pack_forget()
         self.current_response = data
 
-        concise = data.get("concise", {})
         hp = data.get("high_precision", {})
 
-        # Fill Concise
-        self.c1_text.delete("1.0", tk.END)
-        self.c1_text.insert(tk.END, concise.get("prompt_text", ""))
-        pct = concise.get("reduction_percentage", 0)
-        self.c1_badge.config(text=f"{concise.get('token_count', 0)} tokens (-{pct:.0f}%)")
-        self.c1_desc.config(text=concise.get("description", "Minimalist imperative directives."))
-
-        # Fill High Precision
-        self.c2_text.delete("1.0", tk.END)
-        self.c2_text.insert(tk.END, hp.get("prompt_text", ""))
-        self.c2_badge.config(text=f"{hp.get('token_count', 0)} tokens")
-        self.c2_desc.config(text=hp.get("description", "Structured schema & invariants."))
+        self.hp_text.delete("1.0", tk.END)
+        self.hp_text.insert(tk.END, hp.get("prompt_text", ""))
+        self.hp_badge.config(text=f"{hp.get('token_count', 0)} tokens")
+        self.hp_desc.config(text=hp.get("description", "Structured schema, invariants & edge cases."))
 
         self.status_lbl.config(
-            text="Optimization complete! Press [1] for Concise, [2] for High Precision.",
+            text="✓ High Precision Prompt ready! Press Enter or click Copy button.",
             fg="#2ea043"
         )
+        self.copy_hp_btn.focus_set()
 
     def choose_option(self, option_text: str):
         self.clarify_entry.delete(0, tk.END)
@@ -621,22 +610,13 @@ class SpotlightApp:
             self.clarification_answers[self.active_question_id] = val
         self.start_optimization()
 
-    def copy_concise(self):
-        txt = self.c1_text.get("1.0", tk.END).strip()
-        if txt:
-            self.root.clipboard_clear()
-            self.root.clipboard_append(txt)
-            self.card_concise.config(highlightbackground="#2ea043")
-            self.status_lbl.config(text="✓ Concise Prompt copied to clipboard! (Press Esc to hide)", fg="#2ea043")
-            self.root.after(1500, lambda: self.card_concise.config(highlightbackground="#30363d"))
-
     def copy_high_precision(self):
-        txt = self.c2_text.get("1.0", tk.END).strip()
+        txt = self.hp_text.get("1.0", tk.END).strip()
         if txt:
             self.root.clipboard_clear()
             self.root.clipboard_append(txt)
-            self.card_hp.config(highlightbackground="#58a6ff")
-            self.status_lbl.config(text="✓ High Precision Prompt copied to clipboard! (Press Esc to hide)", fg="#58a6ff")
+            self.card_hp.config(highlightbackground="#2ea043")
+            self.status_lbl.config(text="✓ High Precision Prompt copied to clipboard! (Esc to hide)", fg="#2ea043")
             self.root.after(1500, lambda: self.card_hp.config(highlightbackground="#30363d"))
 
     def _handle_error(self, err_msg: str):
